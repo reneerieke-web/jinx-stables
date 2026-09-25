@@ -333,10 +333,10 @@
   #launchChooser{
     position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:24px;
     background:
-      radial-gradient(circle at 18% 12%, rgba(95,170,185,.20), transparent 34%),
-      radial-gradient(circle at 82% 22%, rgba(99,126,190,.16), transparent 38%),
-      radial-gradient(circle at 50% 100%, rgba(53,116,104,.18), transparent 42%),
-      linear-gradient(155deg, #111F2A 0%, #10252A 46%, #0D171F 100%);
+      radial-gradient(circle at 18% 12%, rgba(92,138,214,.24), transparent 34%),
+      radial-gradient(circle at 82% 18%, rgba(145,94,210,.23), transparent 38%),
+      radial-gradient(circle at 50% 100%, rgba(75,108,180,.18), transparent 44%),
+      linear-gradient(155deg, #101936 0%, #11152E 48%, #090D1E 100%);
   }
   #launchChooser[hidden]{display:none;}
   #launchChooser > #bgParticles{z-index:0;}
@@ -609,7 +609,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" integrity="sha384-q36VSR1ktH2hgqgm+0LDeyqPW8CyZHSxfDSttSPm5ReOJzB+sYThmh7D4fE+jWTs" crossorigin="anonymous"></script>
 <!-- Embedded SheetJS (xlsx) 0.18.5, Apache-2.0, https://sheetjs.com -- bundled inline so XLSX import keeps working fully offline, with no network dependency. -->
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -1361,7 +1361,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     snowy:   { mode:"fall",    count:90, colors:["#FFFFFF","#EAF4FF"], sizeMin:1.5, sizeMax:4, speedMin:.4, speedMax:1.1, sway:.6, shape:"circle" },
     desert:  { mode:"drift",   count:40, colors:["#E4C68A","#D9B172","#F0DDB0"], sizeMin:1, sizeMax:2.2, speedMin:.15, speedMax:.4, shape:"circle" },
     blackspirit: { mode:"rise", count:36, colors:["#C0508A","#8C48C9","#E0955A"], sizeMin:1.2, sizeMax:3, speedMin:.25, speedMax:.7, sway:.8, glow:true, shape:"circle" },
-    welcome: { mode:"drift", count:34, colors:["#CBEFFF","#A9E3DA","#F0D58B","#FFFFFF"], sizeMin:.6, sizeMax:1.7, speedMin:.025, speedMax:.09, glow:true, alphaScale:.52, shape:"circle" }
+    welcome: { mode:"drift", count:34, colors:["#BFD8FF","#8FB8FF","#F0D58B","#FFF4C7"], sizeMin:.6, sizeMax:1.7, speedMin:.025, speedMax:.09, glow:true, alphaScale:.52, shape:"circle" }
   };
   var reduceMotion = false;
   try{ reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
@@ -1521,6 +1521,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       }
     }
 
+    var sampleChoice = document.getElementById("launchSample");
+    if(sampleChoice) sampleChoice.hidden = !!cloudReady;
     launchChooser.hidden = !open;
     document.body.classList.toggle("launch-open", !!open);
     if(window.jinxStablesParticles){
@@ -1580,8 +1582,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     beginAccountLaunch("empty");
   });
   document.getElementById("launchSample").addEventListener("click", function(){
+    // Samples are a local-only demo and must never enter a signed-in cloud stable.
+    if(cloudReady) return;
     horses = sampleHorses();
-    persist();
+    persistLocalOnly();
     markSeeded();
     showingSample = true;
     sampleBanner.hidden = false;
