@@ -1986,7 +1986,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
   }
 
-  async function ensureCloudStable(user){  async function ensureCloudStable(user){
+  async function ensureCloudStable(user){
     var first = await cloudClient.from("stables").select("id,name").limit(1).maybeSingle();
     if(first.error) throw first.error;
     if(first.data) return first.data;
@@ -2104,7 +2104,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
   }
 
-  function finishCloudLoad(active, hadAnyCloudRows){  function finishCloudLoad(active, hadAnyCloudRows){
+  function finishCloudLoad(active, hadAnyCloudRows){
     horses = active;
     persistLocalOnly();
     if(hadAnyCloudRows) markSeeded();
@@ -2188,7 +2188,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
   }
 
-  async function openRecentlyDeletedModal(){  async function openRecentlyDeletedModal(){
+  async function openRecentlyDeletedModal(){
     dataMenuPanel.hidden = true;
     if(!cloudReady || !cloudClient || !cloudStableId){
       modalBox.innerHTML = '<h2>Recently deleted</h2><div class="project-warn">Sign in and connect to your cloud stable first.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
