@@ -2362,6 +2362,20 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       discordBtn.disabled = disabled;
     }
 
+    function resetProviderButtons(){
+      if(CLOUD_ALLOWED_ORIGINS.indexOf(window.location.origin) === -1) return;
+      setProviderButtonsDisabled(false);
+      googleBtn.textContent = "Continue with Google";
+      discordBtn.textContent = "Continue with Discord";
+    }
+
+    // Mobile Safari and desktop browsers can restore this page from the
+    // back-forward cache after an OAuth error. Restore the controls so a
+    // different provider can be tried without a manual refresh.
+    window.addEventListener("pageshow", function(){
+      resetProviderButtons();
+    });
+
     if(!window.supabase || !window.supabase.createClient){
       authStatus.textContent = "The sign-in service didn’t load. Refresh the page and try again.";
       setProviderButtonsDisabled(true);
@@ -2379,14 +2393,15 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       if(!getPendingLaunchAction()) setPendingLaunchAction("existing");
       setProviderButtonsDisabled(true);
       button.textContent = openingText;
-      var result = await cloudClient.auth.signInWithOAuth({
-        provider: provider,
-        options: { redirectTo: window.location.origin }
-      });
-      if(result.error){
-        authStatus.textContent = result.error.message || (normalText + " sign-in couldn’t start.");
-        setProviderButtonsDisabled(false);
-        button.textContent = "Continue with " + normalText;
+      try{
+        var result = await cloudClient.auth.signInWithOAuth({
+          provider: provider,
+          options: { redirectTo: window.location.origin }
+        });
+        if(result && result.error) throw result.error;
+      }catch(error){
+        authStatus.textContent = (error && error.message) || (normalText + " sign-in couldn’t start.");
+        resetProviderButtons();
       }
     }
 
