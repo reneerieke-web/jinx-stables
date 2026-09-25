@@ -6,5 +6,6 @@
   "preview_urls": true,
   "assets": {
     "directory": "./public"
-  }
+  },
+  "previews": {}
 }
