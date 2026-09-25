@@ -300,11 +300,11 @@
       radial-gradient(circle at 18% 12%, rgba(95,170,185,.20), transparent 34%),
       radial-gradient(circle at 82% 22%, rgba(99,126,190,.16), transparent 38%),
       radial-gradient(circle at 50% 100%, rgba(53,116,104,.18), transparent 42%),
-      linear-gradient(155deg, rgba(17,31,42,.90) 0%, rgba(16,37,42,.90) 46%, rgba(13,23,31,.91) 100%);
+      linear-gradient(155deg, #111F2A 0%, #10252A 46%, #0D171F 100%);
   }
   #launchChooser[hidden]{display:none;}
-  body.launch-open #bgParticles{z-index:49;}
-  .launch-box{position:relative; z-index:52; max-width:760px; text-align:center; display:flex; flex-direction:column; gap:22px;}
+  #launchChooser > #bgParticles{z-index:0;}
+  .launch-box{position:relative; z-index:1; max-width:760px; text-align:center; display:flex; flex-direction:column; gap:22px;}
   .launch-box p{color:var(--text-soft); font-size:14px;}
   .launch-hero{position:relative; width:100%; max-width:720px; margin:0 auto; border-radius:14px; overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow);}
   .launch-hero picture{display:block;}
@@ -1398,6 +1398,19 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var launchChooser = document.getElementById("launchChooser");
 
   function setLaunchOpen(open){
+    var particleCanvas = document.getElementById("bgParticles");
+    var bgOverlayEl = document.getElementById("bgOverlay");
+
+    if(open){
+      if(particleCanvas && particleCanvas.parentNode !== launchChooser){
+        launchChooser.insertBefore(particleCanvas, launchChooser.firstChild);
+      }
+    } else {
+      if(particleCanvas && particleCanvas.parentNode === launchChooser){
+        document.body.insertBefore(particleCanvas, bgOverlayEl);
+      }
+    }
+
     launchChooser.hidden = !open;
     document.body.classList.toggle("launch-open", !!open);
     if(window.jinxStablesParticles){
