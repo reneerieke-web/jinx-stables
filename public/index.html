@@ -1920,7 +1920,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         if(latestAfterUpsert.upserts[item.id] === item.snapshot){
           delete latestAfterUpsert.upserts[item.id];
         }
-        delete latestAfterUpsert.deletes[item.id];
+        // Do not clear a delete that was queued while this upsert was in
+        // flight. The post-request capture will preserve the newest intent.
       });
       cloudDirty = latestAfterUpsert;
       saveCloudDirty();
