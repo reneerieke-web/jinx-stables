@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jinx-stables",
+  "compatibility_date": "2026-09-24",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./public"
+  }
+}
