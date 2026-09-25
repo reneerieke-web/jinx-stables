@@ -258,10 +258,13 @@
   #authGate{position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:20px;
     background:rgba(8,12,18,.94); backdrop-filter:blur(8px);}
   #authGate[hidden]{display:none;}
-  .auth-box{width:min(520px,100%); background:var(--panel); border:1px solid var(--gold); border-radius:16px; box-shadow:var(--shadow);
+  .auth-box{width:min(760px,100%); background:var(--panel); border:1px solid var(--gold); border-radius:16px; box-shadow:var(--shadow);
     padding:24px; display:flex; flex-direction:column; gap:14px; text-align:center;}
-  .auth-box img{width:100%; max-height:230px; object-fit:cover; border-radius:12px; border:1px solid var(--border);}
+  .auth-box picture{display:block; width:100%;}
+  .auth-box img{display:block; width:100%; max-height:none; object-fit:contain; border-radius:12px; border:1px solid var(--border);}
   .auth-box h1{font-family:"Spectral",Georgia,"Times New Roman",serif; color:var(--gold); font-size:28px; margin:0;}
+  @media (min-width:641px){.auth-box .auth-title{display:none;}}
+  @media (max-width:640px){.auth-box{width:min(520px,100%);}.auth-box img{max-height:230px; object-fit:cover;}}
   .auth-box p{color:var(--text-soft); font-size:13.5px; line-height:1.5; margin:0;}
   .auth-error{color:var(--danger); font-size:12.5px; min-height:18px;}
   #cloudStatus{font-size:12px; color:var(--text-soft); align-self:center; white-space:nowrap;}
@@ -584,8 +587,11 @@
 
 <div id="authGate">
   <div class="auth-box">
-    <img src="assets/hero-horses.webp" alt="Fantasy horses in the Jinx’s Stables courtyard">
-    <h1>Jinx’s Stables</h1>
+    <picture class="auth-hero">
+      <source media="(min-width: 641px)" srcset="assets/hero-titled.webp">
+      <img src="assets/hero-horses.webp" alt="Fantasy horses in the Jinx’s Stables courtyard">
+    </picture>
+    <h1 class="auth-title">Jinx’s Stables</h1>
     <p>Sign in to open your stable. Your horses will be stored in your account and can follow you between your computer and phone.</p>
     <button class="btn primary" id="discordSignInBtn" type="button">Continue with Discord</button>
     <div class="auth-error" id="authStatus" aria-live="polite"></div>
@@ -593,7 +599,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" crossorigin="anonymous"></script>
 <!-- Embedded SheetJS (xlsx) 0.18.5, Apache-2.0, https://sheetjs.com -- bundled inline so XLSX import keeps working fully offline, with no network dependency. -->
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -880,10 +886,14 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var cloudReady = false;
   var cloudConnectingFor = null;
   var cloudShadow = Object.create(null);
+  var cloudUpdatedAt = Object.create(null);
   var cloudDeletedRows = [];
+  var cloudDirty = { upserts:Object.create(null), deletes:Object.create(null) };
+  var CLOUD_DIRTY_KEY_PREFIX = "jinxStables.cloudDirty.v1.";
   var cloudSyncTimer = null;
   var cloudSyncInFlight = false;
   var cloudSyncQueued = false;
+  var cloudLastPullAt = 0;
 
   // ---------- helpers ----------
   function uid(){ return "h_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -1246,7 +1256,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   }
   function persist(){
     persistLocalOnly();
-    if(cloudReady) scheduleCloudSync();
+    if(cloudReady){
+      captureCloudDirtyFromCurrent();
+      scheduleCloudSync();
+    }
   }
   function wasSeeded(){
     try{ return localStorage.getItem(currentSeededKey()) === "1"; }catch(e){ return false; }
@@ -1784,9 +1797,158 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     try{ return JSON.stringify(h); }catch(e){ return ""; }
   }
 
+  function cloudDirtyKey(userId){
+    return CLOUD_DIRTY_KEY_PREFIX + userId;
+  }
+
+  function emptyCloudDirty(){
+    return { upserts:Object.create(null), deletes:Object.create(null) };
+  }
+
+  function loadCloudDirty(userId){
+    if(!userId) return emptyCloudDirty();
+    try{
+      var raw = localStorage.getItem(cloudDirtyKey(userId));
+      if(!raw) return emptyCloudDirty();
+      var parsed = JSON.parse(raw);
+      var clean = emptyCloudDirty();
+      if(parsed && parsed.upserts && typeof parsed.upserts === "object"){
+        Object.keys(parsed.upserts).forEach(function(id){
+          if(typeof parsed.upserts[id] === "string") clean.upserts[id] = parsed.upserts[id];
+        });
+      }
+      if(parsed && parsed.deletes && typeof parsed.deletes === "object"){
+        Object.keys(parsed.deletes).forEach(function(id){
+          if(parsed.deletes[id]) clean.deletes[id] = true;
+        });
+      }
+      return clean;
+    }catch(e){ return emptyCloudDirty(); }
+  }
+
+  function saveCloudDirty(){
+    if(!cloudUserId) return;
+    try{
+      if(!hasCloudDirty()){
+        localStorage.removeItem(cloudDirtyKey(cloudUserId));
+      } else {
+        localStorage.setItem(cloudDirtyKey(cloudUserId), JSON.stringify(cloudDirty));
+      }
+    }catch(e){}
+  }
+
+  function hasCloudDirty(){
+    return Object.keys(cloudDirty.upserts || {}).length > 0 ||
+      Object.keys(cloudDirty.deletes || {}).length > 0;
+  }
+
+  // Capture exact JSON strings, not live horse objects. This makes the dirty
+  // queue survive reloads and prevents an in-flight mutation from being
+  // mistaken for data the server already confirmed.
+  function captureCloudDirtyFromCurrent(){
+    if(!cloudUserId) return;
+    var current = Object.create(null);
+    horses.forEach(function(h){
+      var snap = horseSnapshot(h);
+      current[h.id] = snap;
+      if(cloudShadow[h.id] !== snap){
+        cloudDirty.upserts[h.id] = snap;
+        delete cloudDirty.deletes[h.id];
+      } else {
+        delete cloudDirty.upserts[h.id];
+        delete cloudDirty.deletes[h.id];
+      }
+    });
+
+    // A brand-new horse can be created and removed before its first upload.
+    // Drop that pending insert. Existing confirmed horses become soft deletes.
+    Object.keys(cloudDirty.upserts).forEach(function(id){
+      if(current[id] === undefined){
+        delete cloudDirty.upserts[id];
+        if(Object.prototype.hasOwnProperty.call(cloudShadow,id)) cloudDirty.deletes[id] = true;
+      }
+    });
+    Object.keys(cloudShadow).forEach(function(id){
+      if(current[id] === undefined){
+        delete cloudDirty.upserts[id];
+        cloudDirty.deletes[id] = true;
+      }
+    });
+    saveCloudDirty();
+  }
+
   function scheduleCloudSync(){
     clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = setTimeout(function(){ syncCloudNow(); }, 250);
+    cloudSyncTimer = setTimeout(function(){
+      cloudSyncTimer = null;
+      syncCloudNow();
+    }, 250);
+  }
+
+  async function pushCloudDirtyBatch(){
+    if(!cloudUserId || !cloudStableId) return;
+    cloudDirty = loadCloudDirty(cloudUserId);
+
+    var sentUpserts = Object.keys(cloudDirty.upserts).map(function(id){
+      return { id:id, snapshot:cloudDirty.upserts[id] };
+    });
+
+    if(sentUpserts.length){
+      var payload = sentUpserts.map(function(item){
+        return {
+          stable_id: cloudStableId,
+          id: item.id,
+          data: JSON.parse(item.snapshot),
+          deleted_at: null
+        };
+      });
+      var up = await cloudClient.from("horses")
+        .upsert(payload, { onConflict: "stable_id,id" })
+        .select("id,updated_at,deleted_at");
+      if(up.error) throw up.error;
+
+      var confirmed = Object.create(null);
+      (up.data || []).forEach(function(row){ confirmed[row.id] = row; });
+      var latestAfterUpsert = loadCloudDirty(cloudUserId);
+      sentUpserts.forEach(function(item){
+        cloudShadow[item.id] = item.snapshot;
+        if(confirmed[item.id] && confirmed[item.id].updated_at){
+          cloudUpdatedAt[item.id] = confirmed[item.id].updated_at;
+        }
+        // Only clear the exact snapshot that was sent. If the horse changed
+        // while the request was in flight, the newer dirty snapshot remains.
+        if(latestAfterUpsert.upserts[item.id] === item.snapshot){
+          delete latestAfterUpsert.upserts[item.id];
+        }
+        delete latestAfterUpsert.deletes[item.id];
+      });
+      cloudDirty = latestAfterUpsert;
+      saveCloudDirty();
+    }
+
+    var sentDeletes = Object.keys(cloudDirty.deletes);
+    for(var i=0;i<sentDeletes.length;i++){
+      var id = sentDeletes[i];
+      // The value itself is only a deletion signal. The database trigger
+      // replaces the first null -> non-null transition with server now().
+      var del = await cloudClient.from("horses")
+        .update({ deleted_at: "1970-01-01T00:00:00Z" })
+        .eq("stable_id", cloudStableId)
+        .eq("id", id)
+        .select("id,updated_at,deleted_at");
+      if(del.error) throw del.error;
+
+      var latestAfterDelete = loadCloudDirty(cloudUserId);
+      if(latestAfterDelete.deletes[id] && !latestAfterDelete.upserts[id]){
+        delete latestAfterDelete.deletes[id];
+      }
+      delete cloudShadow[id];
+      if(del.data && del.data[0] && del.data[0].updated_at){
+        cloudUpdatedAt[id] = del.data[0].updated_at;
+      }
+      cloudDirty = latestAfterDelete;
+      saveCloudDirty();
+    }
   }
 
   async function syncCloudNow(){
@@ -1796,36 +1958,18 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     cloudSyncQueued = false;
     setCloudStatus("Saving…", "saving");
     try{
-      var activeById = Object.create(null);
-      var changedRows = [];
-      horses.forEach(function(h){
-        activeById[h.id] = h;
-        var snap = horseSnapshot(h);
-        if(cloudShadow[h.id] !== snap){
-          changedRows.push({ stable_id: cloudStableId, id: h.id, data: h, deleted_at: null });
-        }
-      });
+      captureCloudDirtyFromCurrent();
+      if(hasCloudDirty()) await pushCloudDirtyBatch();
 
-      if(changedRows.length){
-        var up = await cloudClient.from("horses").upsert(changedRows, { onConflict: "stable_id,id" });
-        if(up.error) throw up.error;
-        changedRows.forEach(function(row){ cloudShadow[row.id] = horseSnapshot(row.data); });
+      // Re-capture after the network request. An edit/delete can happen while
+      // the request is in flight; this ensures it stays queued for the next run.
+      captureCloudDirtyFromCurrent();
+      if(hasCloudDirty()){
+        cloudSyncQueued = true;
+        setCloudStatus("Saving…", "saving");
+      } else {
+        setCloudStatus("Cloud saved", "saved");
       }
-
-      var removedIds = Object.keys(cloudShadow).filter(function(id){ return !activeById[id]; });
-      for(var i=0;i<removedIds.length;i++){
-        // Any non-null value is only a deletion signal; a database trigger
-        // replaces it with the server's now(), so device clocks never decide
-        // the 30-day retention window.
-        var del = await cloudClient.from("horses")
-          .update({ deleted_at: "1970-01-01T00:00:00Z" })
-          .eq("stable_id", cloudStableId)
-          .eq("id", removedIds[i]);
-        if(del.error) throw del.error;
-        delete cloudShadow[removedIds[i]];
-      }
-
-      setCloudStatus("Cloud saved", "saved");
     }catch(err){
       setCloudStatus("Cloud save failed — retrying", "error");
       cloudSyncQueued = true;
@@ -1833,12 +1977,15 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       cloudSyncInFlight = false;
       if(cloudSyncQueued){
         clearTimeout(cloudSyncTimer);
-        cloudSyncTimer = setTimeout(function(){ syncCloudNow(); }, 1800);
+        cloudSyncTimer = setTimeout(function(){
+          cloudSyncTimer = null;
+          syncCloudNow();
+        }, 1800);
       }
     }
   }
 
-  async function ensureCloudStable(user){
+  async function ensureCloudStable(user){  async function ensureCloudStable(user){
     var first = await cloudClient.from("stables").select("id,name").limit(1).maybeSingle();
     if(first.error) throw first.error;
     if(first.data) return first.data;
@@ -1866,11 +2013,13 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     if(q.error) throw q.error;
     var rows = q.data || [];
     cloudShadow = Object.create(null);
+    cloudUpdatedAt = Object.create(null);
     cloudDeletedRows = [];
     var active = [];
     rows.forEach(function(row){
       var h = row.data && typeof row.data === "object" ? row.data : {};
       h.id = row.id;
+      cloudUpdatedAt[row.id] = row.updated_at || "";
       if(row.deleted_at){
         cloudDeletedRows.push(row);
       } else {
@@ -1881,7 +2030,80 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     return { rows: rows, active: active };
   }
 
-  function finishCloudLoad(active, hadAnyCloudRows){
+  async function pullCloudWhenSafe(){
+    if(!cloudReady || !cloudClient || !cloudStableId) return;
+    if(document.hidden || cloudSyncInFlight || cloudSyncTimer || hasCloudDirty()) return;
+    if(Date.now() - cloudLastPullAt < 1500) return;
+    cloudLastPullAt = Date.now();
+
+    try{
+      var q = await cloudClient.from("horses")
+        .select("id,data,updated_at,deleted_at")
+        .eq("stable_id", cloudStableId);
+      if(q.error) throw q.error;
+      var rows = q.data || [];
+      var remoteIds = Object.create(null);
+      var localById = Object.create(null);
+      horses.forEach(function(h){ localById[h.id] = h; });
+      cloudDeletedRows = rows.filter(function(row){ return !!row.deleted_at; });
+      var changed = false;
+
+      rows.forEach(function(row){
+        remoteIds[row.id] = true;
+        var knownStamp = cloudUpdatedAt[row.id] || "";
+        var remoteStamp = row.updated_at || "";
+        var existing = localById[row.id];
+
+        if(row.deleted_at){
+          if(existing && (!knownStamp || !remoteStamp || remoteStamp >= knownStamp)){
+            horses = horses.filter(function(h){ return h.id !== row.id; });
+            delete localById[row.id];
+            changed = true;
+          }
+          delete cloudShadow[row.id];
+          cloudUpdatedAt[row.id] = remoteStamp || knownStamp;
+          return;
+        }
+
+        // No local dirt is allowed when this pull runs, so a newer server
+        // updated_at is authoritative. New remote horses are added as well.
+        if(!existing || !knownStamp || (remoteStamp && remoteStamp > knownStamp)){
+          var h = row.data && typeof row.data === "object" ? row.data : {};
+          h.id = row.id;
+          var idx = horses.findIndex(function(x){ return x.id === row.id; });
+          if(idx >= 0) horses[idx] = h; else horses.push(h);
+          localById[row.id] = h;
+          cloudShadow[row.id] = horseSnapshot(h);
+          cloudUpdatedAt[row.id] = remoteStamp;
+          changed = true;
+        } else {
+          cloudUpdatedAt[row.id] = remoteStamp || knownStamp;
+        }
+      });
+
+      // Rows permanently purged by the server disappear completely.
+      Object.keys(cloudUpdatedAt).forEach(function(id){
+        if(!remoteIds[id]){
+          if(localById[id]){
+            horses = horses.filter(function(h){ return h.id !== id; });
+            changed = true;
+          }
+          delete cloudUpdatedAt[id];
+          delete cloudShadow[id];
+        }
+      });
+
+      if(changed){
+        persistLocalOnly();
+        renderAll();
+      }
+      setCloudStatus("Cloud saved", "saved");
+    }catch(err){
+      setCloudStatus("Cloud refresh failed", "error");
+    }
+  }
+
+  function finishCloudLoad(active, hadAnyCloudRows){  function finishCloudLoad(active, hadAnyCloudRows){
     horses = active;
     persistLocalOnly();
     if(hadAnyCloudRows) markSeeded();
@@ -1923,14 +2145,25 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     if(!user || cloudConnectingFor === user.id || (cloudReady && cloudUserId === user.id)) return;
     cloudConnectingFor = user.id;
     cloudUserId = user.id;
+    cloudDirty = loadCloudDirty(user.id);
     setCloudStatus("Loading stable…", "saving");
     var authStatus = document.getElementById("authStatus");
     if(authStatus) authStatus.textContent = "";
     try{
       var stable = await ensureCloudStable(user);
       cloudStableId = stable.id;
+
+      // Never overwrite locally confirmed-but-unsent work with a pull.
+      // Finish the persisted queue first, then fetch the server's final state.
+      if(hasCloudDirty()){
+        cloudReady = true;
+        setCloudStatus("Finishing saved changes…", "saving");
+        await pushCloudDirtyBatch();
+      }
+
       var roster = await fetchCloudRoster();
       cloudReady = true;
+      cloudDirty = loadCloudDirty(user.id);
 
       // Only offer migration when the new cloud stable is genuinely empty.
       // It is never automatic, so a stale browser cannot overwrite an account.
@@ -1944,7 +2177,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       var cached = loadCloudCache(user.id);
       if(authStatus){
         authStatus.textContent = cached && cached.length
-          ? "Couldn’t reach the cloud. Your cached stable is still on this device; reconnect before editing so nothing gets out of sync."
+          ? "Couldn’t reach the cloud. Your cached stable and any unsent edits are still on this device; reconnect before editing so nothing gets out of sync."
           : "Couldn’t load your cloud stable. Check your connection and refresh to try again.";
       }
       setCloudStatus("Cloud unavailable", "error");
@@ -1954,7 +2187,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
   }
 
-  async function openRecentlyDeletedModal(){
+  async function openRecentlyDeletedModal(){  async function openRecentlyDeletedModal(){
     dataMenuPanel.hidden = true;
     if(!cloudReady || !cloudClient || !cloudStableId){
       modalBox.innerHTML = '<h2>Recently deleted</h2><div class="project-warn">Sign in and connect to your cloud stable first.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
@@ -2001,7 +2234,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         var restored = await cloudClient.from("horses")
           .update({ deleted_at: null })
           .eq("stable_id", cloudStableId)
-          .eq("id", row.id);
+          .eq("id", row.id)
+          .select("id,updated_at,deleted_at");
         if(restored.error){
           btn.disabled = false;
           btn.textContent = "Try again";
@@ -2011,6 +2245,12 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         h.id = row.id;
         if(!findHorse(row.id)) horses.push(h);
         cloudShadow[row.id] = horseSnapshot(h);
+        if(restored.data && restored.data[0] && restored.data[0].updated_at){
+          cloudUpdatedAt[row.id] = restored.data[0].updated_at;
+        }
+        delete cloudDirty.deletes[row.id];
+        delete cloudDirty.upserts[row.id];
+        saveCloudDirty();
         cloudDeletedRows = cloudDeletedRows.filter(function(x){ return x.id !== row.id; });
         persistLocalOnly();
         markSeeded();
@@ -2026,7 +2266,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     cloudUserId = null;
     cloudStableId = null;
     cloudShadow = Object.create(null);
+    cloudUpdatedAt = Object.create(null);
     cloudDeletedRows = [];
+    cloudDirty = emptyCloudDirty();
     horses = [];
     setLaunchOpen(false);
     renderAll();
@@ -3515,7 +3757,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   function openImportModal(){
     modalBox.innerHTML =
       '<h2>Import backup</h2>' +
-      '<div class="modal-note">This replaces every horse currently in the app. Load a file, or paste JSON below.</div>' +
+      '<div class="modal-note">This replaces the roster in this signed-in account. Horses not present in the backup move to Recently deleted for 30 days, and values from the backup can overwrite newer edits. Load a file, or paste JSON below.</div>' +
       '<div class="field"><label for="importFile">Load a .json file</label><input id="importFile" type="file" accept="application/json,.json"></div>' +
       '<div class="field"><label for="importBox">…or paste JSON here</label><textarea class="jsonbox" id="importBox" placeholder="Paste exported JSON"></textarea></div>' +
       '<div id="importWarn" class="project-warn" hidden></div>' +
@@ -3587,7 +3829,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       if(!armed){
         armed = true;
         el("importWarn").hidden = false;
-        el("importWarn").textContent = "This will replace all " + horses.length + " horses currently in the app with " + list.length + " from this backup. Click again to confirm.";
+        el("importWarn").textContent = "This will replace the current cloud roster of " + horses.length + " horses with " + list.length + " from this backup. Horses missing from the backup will move to Recently deleted for 30 days, and older backup values can overwrite newer edits. Click again to confirm.";
         el("mConfirm").textContent = "Confirm replace";
         return;
       }
@@ -4857,6 +5099,18 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   // up on cards; re-render once it resolves so the very first paint isn't
   // stuck waiting on it.
   refreshScreenshotIdCache().then(function(){ renderGrid(); });
+
+  window.addEventListener("beforeunload", function(e){
+    if(cloudSyncInFlight || cloudSyncTimer || hasCloudDirty()){
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) pullCloudWhenSafe();
+  });
+  window.addEventListener("focus", function(){ pullCloudWhenSafe(); });
+
   initCloudAuth();
 })();
 </script>
