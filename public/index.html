@@ -267,6 +267,9 @@
   @media (max-width:640px){.auth-box{width:min(520px,100%);}.auth-box img{max-height:230px; object-fit:cover;}}
   .auth-box p{color:var(--text-soft); font-size:13.5px; line-height:1.5; margin:0;}
   .auth-error{color:var(--danger); font-size:12.5px; min-height:18px;}
+  .auth-provider-actions{display:flex; gap:10px;}
+  .auth-provider-actions .btn{flex:1;}
+  @media (max-width:640px){.auth-provider-actions{flex-direction:column;}}
   #cloudStatus{font-size:12px; color:var(--text-soft); align-self:center; white-space:nowrap;}
   #cloudStatus[data-state="saving"]{color:var(--gold);}
   #cloudStatus[data-state="error"]{color:var(--danger);}
@@ -565,16 +568,16 @@
     <p>How would you like to start? You can always import a spreadsheet later from the main screen too.</p>
     <div class="launch-choices">
       <button class="launch-choice" id="launchExisting" type="button">
-        <span class="t">Restore an app backup</span>
-        <span class="d">Bring in a Jinx’s Stables backup you saved earlier. After restore, it will sync to this account.</span>
+        <span class="t">Open my existing stable</span>
+        <span class="d">Sign in with Google or Discord and open the stable already saved to your account.</span>
       </button>
       <button class="launch-choice" id="launchEmpty" type="button">
-        <span class="t">Start empty</span>
-        <span class="d">Begin with a blank stable and add horses yourself.</span>
+        <span class="t">Start an empty stable</span>
+        <span class="d">Sign in, begin with a blank stable, and save it securely to your account.</span>
       </button>
       <button class="launch-choice" id="launchImport" type="button">
         <span class="t">Import my spreadsheet</span>
-        <span class="d">Bring in your existing XLSX or CSV tracker, with a preview before anything is saved.</span>
+        <span class="d">Sign in, import your XLSX or CSV tracker, and save the stable to your account.</span>
       </button>
       <button class="launch-choice" id="launchSample" type="button">
         <span class="t">Explore with sample horses</span>
@@ -585,15 +588,19 @@
   </div>
 </div>
 
-<div id="authGate">
+<div id="authGate" hidden>
   <div class="auth-box">
     <picture class="auth-hero">
       <source media="(min-width: 641px)" srcset="assets/hero-titled.webp">
       <img src="assets/hero-horses.webp" alt="Fantasy horses in the Jinx’s Stables courtyard">
     </picture>
     <h1 class="auth-title">Jinx’s Stables</h1>
-    <p>Sign in to open your stable. Your horses will be stored in your account and can follow you between your computer and phone.</p>
-    <button class="btn primary" id="discordSignInBtn" type="button">Continue with Discord</button>
+    <p id="authPrompt">Choose Google or Discord to continue. Your stable will be saved to that account and can follow you between your computer and phone.</p>
+    <div class="auth-provider-actions">
+      <button class="btn primary" id="googleSignInBtn" type="button">Continue with Google</button>
+      <button class="btn primary" id="discordSignInBtn" type="button">Continue with Discord</button>
+    </div>
+    <button class="btn" id="authCancelBtn" type="button">Back</button>
     <div class="auth-error" id="authStatus" aria-live="polite"></div>
     <div class="launch-legal">Independent fan-made tool for Black Desert Online. Not affiliated with or endorsed by Pearl Abyss.</div>
   </div>
@@ -894,6 +901,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var cloudSyncInFlight = false;
   var cloudSyncQueued = false;
   var cloudLastPullAt = 0;
+  var CLOUD_LAUNCH_ACTION_KEY = "jinxStables.pendingLaunchAction.v1";
 
   // ---------- helpers ----------
   function uid(){ return "h_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -1516,6 +1524,45 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       window.jinxStablesParticles.start(open ? "welcome" : themePrefs.theme);
     }
   }
+  function setPendingLaunchAction(action){
+    try{ sessionStorage.setItem(CLOUD_LAUNCH_ACTION_KEY, action); }catch(e){}
+  }
+  function getPendingLaunchAction(){
+    try{ return sessionStorage.getItem(CLOUD_LAUNCH_ACTION_KEY) || ""; }catch(e){ return ""; }
+  }
+  function clearPendingLaunchAction(){
+    try{ sessionStorage.removeItem(CLOUD_LAUNCH_ACTION_KEY); }catch(e){}
+  }
+  function authPromptFor(action){
+    if(action === "empty") return "Choose Google or Discord. Your new empty stable will be saved to that account.";
+    if(action === "import") return "Choose Google or Discord. After sign-in, your spreadsheet importer will open and the imported stable will save to that account.";
+    return "Choose Google or Discord to open the stable already saved to your account.";
+  }
+  function beginAccountLaunch(action){
+    setPendingLaunchAction(action);
+    if(cloudReady){
+      clearPendingLaunchAction();
+      setLaunchOpen(false);
+      if(action === "import"){
+        openImportWizard({ fromLaunch: true });
+      } else if(action === "empty"){
+        if(!horses.length){
+          markSeeded();
+          persist();
+        }
+        revealStorageWarnIfNeeded();
+        renderAll();
+      }
+      return;
+    }
+    var prompt = document.getElementById("authPrompt");
+    if(prompt) prompt.textContent = authPromptFor(action);
+    var status = document.getElementById("authStatus");
+    if(status) status.textContent = "";
+    document.getElementById("authGate").hidden = false;
+    setLaunchOpen(false);
+  }
+
   setLaunchOpen(needsLaunchChooser);
   function revealStorageWarnIfNeeded(){
     var seen = false;
@@ -1524,16 +1571,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   }
 
   document.getElementById("launchExisting").addEventListener("click", function(){
-    setLaunchOpen(false);
-    openImportModal();
+    beginAccountLaunch("existing");
   });
   document.getElementById("launchEmpty").addEventListener("click", function(){
-    horses = [];
-    persist();
-    markSeeded();
-    setLaunchOpen(false);
-    revealStorageWarnIfNeeded();
-    renderAll();
+    beginAccountLaunch("empty");
   });
   document.getElementById("launchSample").addEventListener("click", function(){
     horses = sampleHorses();
@@ -1546,8 +1587,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     renderAll();
   });
   document.getElementById("launchImport").addEventListener("click", function(){
-    setLaunchOpen(false);
-    openImportWizard({ fromLaunch: true });
+    beginAccountLaunch("import");
   });
 
   sampleBanner.hidden = !showingSample;
@@ -2166,9 +2206,37 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       cloudReady = true;
       cloudDirty = loadCloudDirty(user.id);
 
-      // Only offer migration when the new cloud stable is genuinely empty.
-      // It is never automatic, so a stale browser cannot overwrite an account.
-      if(roster.rows.length === 0 && startupLocalHorses.length){
+      var requestedAction = getPendingLaunchAction();
+      if(requestedAction) clearPendingLaunchAction();
+
+      if(requestedAction === "empty"){
+        if(roster.rows.length > 0){
+          finishCloudLoad(roster.active, true);
+        } else {
+          markSeeded();
+          finishCloudLoad([], false);
+          persist();
+        }
+      } else if(requestedAction === "import"){
+        finishCloudLoad(roster.active, roster.rows.length > 0);
+        setTimeout(function(){ openImportWizard({ fromLaunch: true }); }, 0);
+      } else if(requestedAction === "existing"){
+        if(roster.rows.length === 0 && startupLocalHorses.length){
+          offerLocalRosterMigration(roster.active);
+        } else {
+          finishCloudLoad(roster.active, roster.rows.length > 0);
+          if(roster.rows.length === 0){
+            setTimeout(function(){
+              modalBox.innerHTML =
+                '<h2>No saved stable found</h2>' +
+                '<div class="modal-note">This account does not have a saved stable yet. Choose <b>Start an empty stable</b> or <b>Import my spreadsheet</b>.</div>' +
+                '<div class="modal-actions"><button class="btn primary" id="mCancel">Choose an option</button></div>';
+              el("mCancel").addEventListener("click", closeModal);
+              modalBackdrop.hidden = false;
+            }, 0);
+          }
+        }
+      } else if(roster.rows.length === 0 && startupLocalHorses.length){
         offerLocalRosterMigration(roster.active);
       } else {
         finishCloudLoad(roster.active, roster.rows.length > 0);
@@ -2271,42 +2339,65 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     cloudDeletedRows = [];
     cloudDirty = emptyCloudDirty();
     horses = [];
-    setLaunchOpen(false);
     renderAll();
     document.getElementById("signOutBtn").hidden = true;
-    document.getElementById("authGate").hidden = false;
+    document.getElementById("authGate").hidden = true;
+    clearPendingLaunchAction();
+    setLaunchOpen(true);
     setCloudStatus("", "idle");
   }
 
   function initCloudAuth(){
     var authGate = document.getElementById("authGate");
     var authStatus = document.getElementById("authStatus");
-    var signInBtn = document.getElementById("discordSignInBtn");
+    var googleBtn = document.getElementById("googleSignInBtn");
+    var discordBtn = document.getElementById("discordSignInBtn");
+    var cancelBtn = document.getElementById("authCancelBtn");
+
+    function setProviderButtonsDisabled(disabled){
+      googleBtn.disabled = disabled;
+      discordBtn.disabled = disabled;
+    }
+
     if(!window.supabase || !window.supabase.createClient){
       authStatus.textContent = "The sign-in service didn’t load. Refresh the page and try again.";
-      signInBtn.disabled = true;
+      setProviderButtonsDisabled(true);
       return;
     }
     cloudClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
     if(CLOUD_ALLOWED_ORIGINS.indexOf(window.location.origin) === -1){
       authStatus.textContent = "This one-off deployment address is not approved for sign-in. Open the stable branch preview address instead.";
-      signInBtn.disabled = true;
+      setProviderButtonsDisabled(true);
     }
 
-    signInBtn.addEventListener("click", async function(){
+    async function startOAuth(provider, button, openingText, normalText){
       authStatus.textContent = "";
-      signInBtn.disabled = true;
-      signInBtn.textContent = "Opening Discord…";
-      var r = await cloudClient.auth.signInWithOAuth({
-        provider: "discord",
+      if(!getPendingLaunchAction()) setPendingLaunchAction("existing");
+      setProviderButtonsDisabled(true);
+      button.textContent = openingText;
+      var result = await cloudClient.auth.signInWithOAuth({
+        provider: provider,
         options: { redirectTo: window.location.origin }
       });
-      if(r.error){
-        authStatus.textContent = r.error.message || "Discord sign-in couldn’t start.";
-        signInBtn.disabled = false;
-        signInBtn.textContent = "Continue with Discord";
+      if(result.error){
+        authStatus.textContent = result.error.message || (normalText + " sign-in couldn’t start.");
+        setProviderButtonsDisabled(false);
+        button.textContent = "Continue with " + normalText;
       }
+    }
+
+    googleBtn.addEventListener("click", function(){
+      startOAuth("google", googleBtn, "Opening Google…", "Google");
+    });
+    discordBtn.addEventListener("click", function(){
+      startOAuth("discord", discordBtn, "Opening Discord…", "Discord");
+    });
+    cancelBtn.addEventListener("click", function(){
+      clearPendingLaunchAction();
+      authStatus.textContent = "";
+      authGate.hidden = true;
+      setLaunchOpen(true);
     });
 
     document.getElementById("signOutBtn").addEventListener("click", async function(){
@@ -2327,7 +2418,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       if(session && session.user){
         connectCloudAccount(session.user);
       } else {
-        authGate.hidden = false;
+        authGate.hidden = true;
+        setLaunchOpen(true);
       }
     }).catch(function(){
       authStatus.textContent = "Couldn’t check your sign-in. Refresh and try again.";
