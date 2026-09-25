@@ -254,6 +254,26 @@
   #modalBox textarea.jsonbox{font-family:"IBM Plex Mono","Courier New",monospace; font-size:11.5px; height:160px; background:var(--ink); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px; width:100%; resize:vertical;}
   .modal-note{font-size:12px; color:var(--text-faint);}
 
+  /* ---- Cloud account gate + sync status ---- */
+  #authGate{position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:rgba(8,12,18,.94); backdrop-filter:blur(8px);}
+  #authGate[hidden]{display:none;}
+  .auth-box{width:min(520px,100%); background:var(--panel); border:1px solid var(--gold); border-radius:16px; box-shadow:var(--shadow);
+    padding:24px; display:flex; flex-direction:column; gap:14px; text-align:center;}
+  .auth-box img{width:100%; max-height:230px; object-fit:cover; border-radius:12px; border:1px solid var(--border);}
+  .auth-box h1{font-family:"Spectral",Georgia,"Times New Roman",serif; color:var(--gold); font-size:28px; margin:0;}
+  .auth-box p{color:var(--text-soft); font-size:13.5px; line-height:1.5; margin:0;}
+  .auth-error{color:var(--danger); font-size:12.5px; min-height:18px;}
+  #cloudStatus{font-size:12px; color:var(--text-soft); align-self:center; white-space:nowrap;}
+  #cloudStatus[data-state="saving"]{color:var(--gold);}
+  #cloudStatus[data-state="error"]{color:var(--danger);}
+  #cloudStatus[data-state="saved"]{color:var(--keeper);}
+  .deleted-list{display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow:auto;}
+  .deleted-row{display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:9px; padding:10px; background:var(--ink);}
+  .deleted-row .deleted-main{flex:1; min-width:0;}
+  .deleted-row .deleted-name{font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .deleted-row .deleted-date{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+
   #duplicateBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:70; display:flex; align-items:center; justify-content:center; padding:20px;}
   #duplicateBackdrop[hidden]{display:none;}
   #duplicateBox{background:var(--panel); border:1px solid var(--gold); border-radius:14px; box-shadow:var(--shadow); width:min(460px,100%); padding:22px; display:flex; flex-direction:column; gap:14px;}
@@ -412,8 +432,10 @@
           <button class="btn" id="importBtn">Restore App Backup (JSON)</button>
           <div class="dropdown-desc">Replaces your horses with a JSON file this app exported earlier. Not for spreadsheets — use Import Horse Spreadsheet for those.</div>
           <hr style="border-color:var(--border); width:100%;">
-          <button class="btn" id="transferBtn">Transfer Roster to Another Device</button>
-          <div class="dropdown-desc">Move your roster between your computer and phone by hand: send or save a transfer file on one device, then preview and merge it in on the other. Not automatic — nothing syncs until you do this.</div>
+          <button class="btn" id="recentlyDeletedBtn">Recently deleted</button>
+          <div class="dropdown-desc">Restore horses deleted in the last 30 days before automatic cleanup permanently removes them.</div>
+          <button class="btn" id="transferBtn">Manual Transfer File</button>
+          <div class="dropdown-desc">Backup fallback only. Your signed-in stable syncs automatically; this makes a manual transfer file if you ever need one.</div>
           <hr style="border-color:var(--border); width:100%;">
           <button class="btn" id="importSheetBtn">Import Horse Spreadsheet (CSV/XLSX)</button>
           <div class="dropdown-desc">Brings in your own .xlsx or .csv tracker, with a full preview before anything is saved.</div>
@@ -440,6 +462,8 @@
           <div class="modal-note" style="font-size:12px;">Themes are built from plain CSS gradients, so they keep working even with this file opened offline.</div>
         </div>
       </div>
+      <span id="cloudStatus" data-state="idle" aria-live="polite"></span>
+      <button class="btn small" id="signOutBtn" type="button" hidden>Sign out</button>
       <button class="btn" id="exchangeBtn">+ Log exchange</button>
       <button class="btn" id="addBtn">+ Log a new horse</button>
       <button class="btn primary" id="quickAddBtn">⚡ Quick Add</button>
@@ -538,8 +562,8 @@
     <p>How would you like to start? You can always import a spreadsheet later from the main screen too.</p>
     <div class="launch-choices">
       <button class="launch-choice" id="launchExisting" type="button">
-        <span class="t">Open my existing stable</span>
-        <span class="d">Bring your Jinx’s Stables roster over from another device using a transfer or backup file.</span>
+        <span class="t">Restore an app backup</span>
+        <span class="d">Bring in a Jinx’s Stables backup you saved earlier. After restore, it will sync to this account.</span>
       </button>
       <button class="launch-choice" id="launchEmpty" type="button">
         <span class="t">Start empty</span>
@@ -558,6 +582,18 @@
   </div>
 </div>
 
+<div id="authGate">
+  <div class="auth-box">
+    <img src="assets/hero-horses.webp" alt="Fantasy horses in the Jinx’s Stables courtyard">
+    <h1>Jinx’s Stables</h1>
+    <p>Sign in to open your stable. Your horses will be stored in your account and can follow you between your computer and phone.</p>
+    <button class="btn primary" id="discordSignInBtn" type="button">Continue with Discord</button>
+    <div class="auth-error" id="authStatus" aria-live="polite"></div>
+    <div class="launch-legal">Independent fan-made tool for Black Desert Online. Not affiliated with or endorsed by Pearl Abyss.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Embedded SheetJS (xlsx) 0.18.5, Apache-2.0, https://sheetjs.com -- bundled inline so XLSX import keeps working fully offline, with no network dependency. -->
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -827,6 +863,27 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var SEEDED_KEY = "jinxStables.seeded.v2";
   var LEGACY_STORE_KEY = "jinxStables.horses.v1";
   var STORAGE_WARN_SEEN_KEY = "jinxStables.storageWarnSeen.v1";
+
+  // ---------- cloud account / sync state ----------
+  // The publishable key is intentionally public. Row Level Security in
+  // Supabase is the authorization boundary; no service-role secret is ever
+  // present in this browser app.
+  var SUPABASE_URL = "https://zvarxnnuacsiiamjwxkr.supabase.co";
+  var SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oJEXSaVkgtlPhxGvfULkEg_4hi1jfUH";
+  var CLOUD_ALLOWED_ORIGINS = [
+    "https://jinx-stables.renee-rieke.workers.dev",
+    "https://cloud-sync-preview-jinx-stables.renee-rieke.workers.dev"
+  ];
+  var cloudClient = null;
+  var cloudUserId = null;
+  var cloudStableId = null;
+  var cloudReady = false;
+  var cloudConnectingFor = null;
+  var cloudShadow = Object.create(null);
+  var cloudDeletedRows = [];
+  var cloudSyncTimer = null;
+  var cloudSyncInFlight = false;
+  var cloudSyncQueued = false;
 
   // ---------- helpers ----------
   function uid(){ return "h_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -1178,14 +1235,24 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       return migrated;
     }catch(e){ return null; }
   }
+  function currentHorseStoreKey(){
+    return cloudUserId ? (STORE_KEY + ".cloud." + cloudUserId) : STORE_KEY;
+  }
+  function currentSeededKey(){
+    return cloudUserId ? (SEEDED_KEY + ".cloud." + cloudUserId) : SEEDED_KEY;
+  }
+  function persistLocalOnly(){
+    try{ localStorage.setItem(currentHorseStoreKey(), JSON.stringify(horses)); }catch(e){}
+  }
   function persist(){
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(horses)); }catch(e){}
+    persistLocalOnly();
+    if(cloudReady) scheduleCloudSync();
   }
   function wasSeeded(){
-    try{ return localStorage.getItem(SEEDED_KEY) === "1"; }catch(e){ return false; }
+    try{ return localStorage.getItem(currentSeededKey()) === "1"; }catch(e){ return false; }
   }
   function markSeeded(){
-    try{ localStorage.setItem(SEEDED_KEY,"1"); }catch(e){}
+    try{ localStorage.setItem(currentSeededKey(),"1"); }catch(e){}
   }
 
   var horses = load();
@@ -1228,6 +1295,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   if(subtypeSchemaChanged){
     try{ localStorage.setItem(STORE_KEY, JSON.stringify(horses)); }catch(e){}
   }
+  // Keep a read-only copy of pre-cloud browser data so first sign-in can
+  // offer a safe one-time migration instead of silently overwriting it.
+  var startupLocalHorses = JSON.parse(JSON.stringify(horses || []));
 
   var state = { capsule:"active", tier:"All", sub:"All", search:"", editingId:null, sort:"name", needsTraining:false };
   var SHOW_EXTRAS_KEY = "jinxStables.showCardExtras.v1";
@@ -1442,7 +1512,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
   document.getElementById("launchExisting").addEventListener("click", function(){
     setLaunchOpen(false);
-    openTransferModal({ fromLaunch: true });
+    openImportModal();
   });
   document.getElementById("launchEmpty").addEventListener("click", function(){
     horses = [];
@@ -1694,6 +1764,334 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     renderGrid();
   }
 
+
+  // ---------- Supabase auth + conservative per-horse cloud sync ----------
+  function setCloudStatus(textValue, stateValue){
+    var node = document.getElementById("cloudStatus");
+    if(!node) return;
+    node.textContent = textValue || "";
+    node.setAttribute("data-state", stateValue || "idle");
+  }
+
+  function loadCloudCache(userId){
+    try{
+      var raw = localStorage.getItem(STORE_KEY + ".cloud." + userId);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function horseSnapshot(h){
+    try{ return JSON.stringify(h); }catch(e){ return ""; }
+  }
+
+  function scheduleCloudSync(){
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(function(){ syncCloudNow(); }, 250);
+  }
+
+  async function syncCloudNow(){
+    if(!cloudReady || !cloudClient || !cloudStableId) return;
+    if(cloudSyncInFlight){ cloudSyncQueued = true; return; }
+    cloudSyncInFlight = true;
+    cloudSyncQueued = false;
+    setCloudStatus("Saving…", "saving");
+    try{
+      var activeById = Object.create(null);
+      var changedRows = [];
+      horses.forEach(function(h){
+        activeById[h.id] = h;
+        var snap = horseSnapshot(h);
+        if(cloudShadow[h.id] !== snap){
+          changedRows.push({ stable_id: cloudStableId, id: h.id, data: h, deleted_at: null });
+        }
+      });
+
+      if(changedRows.length){
+        var up = await cloudClient.from("horses").upsert(changedRows, { onConflict: "stable_id,id" });
+        if(up.error) throw up.error;
+        changedRows.forEach(function(row){ cloudShadow[row.id] = horseSnapshot(row.data); });
+      }
+
+      var removedIds = Object.keys(cloudShadow).filter(function(id){ return !activeById[id]; });
+      for(var i=0;i<removedIds.length;i++){
+        // Any non-null value is only a deletion signal; a database trigger
+        // replaces it with the server's now(), so device clocks never decide
+        // the 30-day retention window.
+        var del = await cloudClient.from("horses")
+          .update({ deleted_at: "1970-01-01T00:00:00Z" })
+          .eq("stable_id", cloudStableId)
+          .eq("id", removedIds[i]);
+        if(del.error) throw del.error;
+        delete cloudShadow[removedIds[i]];
+      }
+
+      setCloudStatus("Cloud saved", "saved");
+    }catch(err){
+      setCloudStatus("Cloud save failed — retrying", "error");
+      cloudSyncQueued = true;
+    }finally{
+      cloudSyncInFlight = false;
+      if(cloudSyncQueued){
+        clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = setTimeout(function(){ syncCloudNow(); }, 1800);
+      }
+    }
+  }
+
+  async function ensureCloudStable(user){
+    var first = await cloudClient.from("stables").select("id,name").limit(1).maybeSingle();
+    if(first.error) throw first.error;
+    if(first.data) return first.data;
+
+    var displayName = (user.user_metadata && (user.user_metadata.global_name || user.user_metadata.full_name || user.user_metadata.name)) || "My";
+    var created = await cloudClient.from("stables")
+      .insert({ owner_id: user.id, name: displayName === "My" ? "My Stable" : (displayName + "’s Stable") })
+      .select("id,name").single();
+    if(!created.error) return created.data;
+
+    // Two devices can both notice the empty account at once. The unique
+    // owner index lets only one win; the other simply re-selects it.
+    if(created.error && String(created.error.code || "") === "23505"){
+      var retry = await cloudClient.from("stables").select("id,name").limit(1).single();
+      if(retry.error) throw retry.error;
+      return retry.data;
+    }
+    throw created.error;
+  }
+
+  async function fetchCloudRoster(){
+    var q = await cloudClient.from("horses")
+      .select("id,data,updated_at,deleted_at")
+      .eq("stable_id", cloudStableId);
+    if(q.error) throw q.error;
+    var rows = q.data || [];
+    cloudShadow = Object.create(null);
+    cloudDeletedRows = [];
+    var active = [];
+    rows.forEach(function(row){
+      var h = row.data && typeof row.data === "object" ? row.data : {};
+      h.id = row.id;
+      if(row.deleted_at){
+        cloudDeletedRows.push(row);
+      } else {
+        active.push(h);
+        cloudShadow[row.id] = horseSnapshot(h);
+      }
+    });
+    return { rows: rows, active: active };
+  }
+
+  function finishCloudLoad(active, hadAnyCloudRows){
+    horses = active;
+    persistLocalOnly();
+    if(hadAnyCloudRows) markSeeded();
+    showingSample = false;
+    sampleBanner.hidden = true;
+    storageWarnBanner.hidden = true;
+    setLaunchOpen(!hadAnyCloudRows && horses.length === 0 && !wasSeeded());
+    renderAll();
+    document.getElementById("authGate").hidden = true;
+    document.getElementById("signOutBtn").hidden = false;
+    setCloudStatus("Cloud saved", "saved");
+  }
+
+  function offerLocalRosterMigration(activeFromCloud){
+    document.getElementById("authGate").hidden = true;
+    modalBox.innerHTML =
+      '<h2>We found horses saved on this device</h2>' +
+      '<div class="modal-note">There are <b>' + startupLocalHorses.length + '</b> horses in this browser from before cloud accounts were connected. Do you want to add that roster to this signed-in account?</div>' +
+      '<div class="project-warn">Nothing is uploaded unless you choose Upload. Your old browser copy stays in place either way.</div>' +
+      '<div class="modal-actions"><button class="btn" id="cloudMigrationSkip">Not now</button><button class="btn primary" id="cloudMigrationUpload">Upload these horses</button></div>';
+    modalBackdrop.hidden = false;
+    el("cloudMigrationSkip").addEventListener("click", function(){
+      closeModal();
+      finishCloudLoad(activeFromCloud, false);
+    });
+    el("cloudMigrationUpload").addEventListener("click", function(){
+      horses = JSON.parse(JSON.stringify(startupLocalHorses));
+      closeModal();
+      markSeeded();
+      setLaunchOpen(false);
+      renderAll();
+      persist();
+      document.getElementById("signOutBtn").hidden = false;
+      setCloudStatus("Saving…", "saving");
+    });
+  }
+
+  async function connectCloudAccount(user){
+    if(!user || cloudConnectingFor === user.id || (cloudReady && cloudUserId === user.id)) return;
+    cloudConnectingFor = user.id;
+    cloudUserId = user.id;
+    setCloudStatus("Loading stable…", "saving");
+    var authStatus = document.getElementById("authStatus");
+    if(authStatus) authStatus.textContent = "";
+    try{
+      var stable = await ensureCloudStable(user);
+      cloudStableId = stable.id;
+      var roster = await fetchCloudRoster();
+      cloudReady = true;
+
+      // Only offer migration when the new cloud stable is genuinely empty.
+      // It is never automatic, so a stale browser cannot overwrite an account.
+      if(roster.rows.length === 0 && startupLocalHorses.length){
+        offerLocalRosterMigration(roster.active);
+      } else {
+        finishCloudLoad(roster.active, roster.rows.length > 0);
+      }
+    }catch(err){
+      cloudReady = false;
+      var cached = loadCloudCache(user.id);
+      if(authStatus){
+        authStatus.textContent = cached && cached.length
+          ? "Couldn’t reach the cloud. Your cached stable is still on this device; reconnect before editing so nothing gets out of sync."
+          : "Couldn’t load your cloud stable. Check your connection and refresh to try again.";
+      }
+      setCloudStatus("Cloud unavailable", "error");
+      document.getElementById("authGate").hidden = false;
+    }finally{
+      cloudConnectingFor = null;
+    }
+  }
+
+  async function openRecentlyDeletedModal(){
+    dataMenuPanel.hidden = true;
+    if(!cloudReady || !cloudClient || !cloudStableId){
+      modalBox.innerHTML = '<h2>Recently deleted</h2><div class="project-warn">Sign in and connect to your cloud stable first.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
+      el("mCancel").addEventListener("click", closeModal);
+      modalBackdrop.hidden = false;
+      return;
+    }
+
+    modalBox.innerHTML = '<h2>Recently deleted</h2><div class="modal-note">Loading…</div>';
+    modalBackdrop.hidden = false;
+    var q = await cloudClient.from("horses")
+      .select("id,data,deleted_at")
+      .eq("stable_id", cloudStableId)
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false });
+    if(q.error){
+      modalBox.innerHTML = '<h2>Recently deleted</h2><div class="project-warn">Couldn’t load deleted horses right now.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
+      el("mCancel").addEventListener("click", closeModal);
+      return;
+    }
+    cloudDeletedRows = q.data || [];
+    renderRecentlyDeletedRows();
+  }
+
+  function renderRecentlyDeletedRows(){
+    var rowsHtml = cloudDeletedRows.length ? cloudDeletedRows.map(function(row, idx){
+      var name = row.data && row.data.name ? row.data.name : "Unnamed horse";
+      var when = row.deleted_at ? new Date(row.deleted_at).toLocaleString() : "";
+      return '<div class="deleted-row"><div class="deleted-main"><div class="deleted-name">' + esc(name) + '</div><div class="deleted-date">Deleted ' + esc(when) + '</div></div><button class="btn small" data-restore-index="' + idx + '">Restore</button></div>';
+    }).join("") : '<div class="modal-note">Nothing is waiting for restoration.</div>';
+
+    modalBox.innerHTML =
+      '<h2>Recently deleted</h2>' +
+      '<div class="modal-note">Deleted horses stay here for 30 days, then Supabase removes them automatically.</div>' +
+      '<div class="deleted-list">' + rowsHtml + '</div>' +
+      '<div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
+    el("mCancel").addEventListener("click", closeModal);
+    Array.prototype.forEach.call(modalBox.querySelectorAll("[data-restore-index]"), function(btn){
+      btn.addEventListener("click", async function(){
+        var row = cloudDeletedRows[parseInt(btn.getAttribute("data-restore-index"),10)];
+        if(!row) return;
+        btn.disabled = true;
+        btn.textContent = "Restoring…";
+        var restored = await cloudClient.from("horses")
+          .update({ deleted_at: null })
+          .eq("stable_id", cloudStableId)
+          .eq("id", row.id);
+        if(restored.error){
+          btn.disabled = false;
+          btn.textContent = "Try again";
+          return;
+        }
+        var h = row.data && typeof row.data === "object" ? row.data : {};
+        h.id = row.id;
+        if(!findHorse(row.id)) horses.push(h);
+        cloudShadow[row.id] = horseSnapshot(h);
+        cloudDeletedRows = cloudDeletedRows.filter(function(x){ return x.id !== row.id; });
+        persistLocalOnly();
+        markSeeded();
+        renderAll();
+        renderRecentlyDeletedRows();
+        setCloudStatus("Cloud saved", "saved");
+      });
+    });
+  }
+
+  function resetCloudSessionUI(){
+    cloudReady = false;
+    cloudUserId = null;
+    cloudStableId = null;
+    cloudShadow = Object.create(null);
+    cloudDeletedRows = [];
+    horses = [];
+    setLaunchOpen(false);
+    renderAll();
+    document.getElementById("signOutBtn").hidden = true;
+    document.getElementById("authGate").hidden = false;
+    setCloudStatus("", "idle");
+  }
+
+  function initCloudAuth(){
+    var authGate = document.getElementById("authGate");
+    var authStatus = document.getElementById("authStatus");
+    var signInBtn = document.getElementById("discordSignInBtn");
+    if(!window.supabase || !window.supabase.createClient){
+      authStatus.textContent = "The sign-in service didn’t load. Refresh the page and try again.";
+      signInBtn.disabled = true;
+      return;
+    }
+    cloudClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+    if(CLOUD_ALLOWED_ORIGINS.indexOf(window.location.origin) === -1){
+      authStatus.textContent = "This one-off deployment address is not approved for sign-in. Open the stable branch preview address instead.";
+      signInBtn.disabled = true;
+    }
+
+    signInBtn.addEventListener("click", async function(){
+      authStatus.textContent = "";
+      signInBtn.disabled = true;
+      signInBtn.textContent = "Opening Discord…";
+      var r = await cloudClient.auth.signInWithOAuth({
+        provider: "discord",
+        options: { redirectTo: window.location.origin }
+      });
+      if(r.error){
+        authStatus.textContent = r.error.message || "Discord sign-in couldn’t start.";
+        signInBtn.disabled = false;
+        signInBtn.textContent = "Continue with Discord";
+      }
+    });
+
+    document.getElementById("signOutBtn").addEventListener("click", async function(){
+      await cloudClient.auth.signOut();
+      resetCloudSessionUI();
+    });
+
+    cloudClient.auth.onAuthStateChange(function(event, session){
+      if(session && session.user){
+        connectCloudAccount(session.user);
+      } else if(event === "SIGNED_OUT"){
+        resetCloudSessionUI();
+      }
+    });
+
+    cloudClient.auth.getSession().then(function(result){
+      var session = result.data && result.data.session;
+      if(session && session.user){
+        connectCloudAccount(session.user);
+      } else {
+        authGate.hidden = false;
+      }
+    }).catch(function(){
+      authStatus.textContent = "Couldn’t check your sign-in. Refresh and try again.";
+      authGate.hidden = false;
+    });
+  }
+
   // ---------- shared skill grid renderer ----------
   function renderSkillGrid(container, draftSkills, tier, onToggle, excludeKeys){
     var reqs = courserReqs(tier) || [];
@@ -1856,7 +2254,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     '</fieldset>' +
 
     '<div id="deleteConfirmRow" class="field" hidden>' +
-      '<label for="deleteConfirmName">This permanently deletes the record. Real horses should usually be moved between capsules (Sold, Exchanged, a project, etc.) instead of deleted. Type the horse\'s exact name below, then click Confirm delete.</label>' +
+      '<label for="deleteConfirmName">This moves the horse to Recently deleted for 30 days. You can restore it from Data &amp; Backups during that time. Type the horse\'s exact name below, then click Confirm delete.</label>' +
       '<div style="display:flex; gap:8px; align-items:center;">' +
         '<input id="deleteConfirmName" type="text" placeholder="Type the horse\'s name to confirm" style="flex:1;">' +
         '<button class="btn small" id="deleteCancelBtn" type="button">Cancel</button>' +
@@ -2288,8 +2686,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       }
       var deletedId = state.editingId;
       horses = horses.filter(function(x){ return x.id !== deletedId; });
+      // Cloud sync interprets a horse removed from the active roster as a
+      // soft delete and sets deleted_at. Keep its device screenshot intact
+      // so restoring within 30 days also restores the local visual reference.
       persist();
-      deleteScreenshot(deletedId).then(refreshScreenshotIdCache).catch(function(){});
       closeEditorFn();
       renderAll();
     });
@@ -4338,6 +4738,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   document.getElementById("exchangeBtn").addEventListener("click", openExchangeModal);
   document.getElementById("exportBtn").addEventListener("click", openExportModal);
   document.getElementById("importBtn").addEventListener("click", openImportModal);
+  document.getElementById("recentlyDeletedBtn").addEventListener("click", openRecentlyDeletedModal);
   document.getElementById("transferBtn").addEventListener("click", openTransferModal);
   document.getElementById("importSheetBtn").addEventListener("click", function(){ openImportWizard({fromLaunch:false}); });
   document.getElementById("exportRosterBtn").addEventListener("click", exportRosterXLSX);
@@ -4456,6 +4857,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   // up on cards; re-render once it resolves so the very first paint isn't
   // stuck waiting on it.
   refreshScreenshotIdCache().then(function(){ renderGrid(); });
+  initCloudAuth();
 })();
 </script>
 </body>
