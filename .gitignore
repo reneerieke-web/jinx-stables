@@ -1,0 +1,17 @@
+# Local roster exports and private working files
+*.json
+*.xlsx
+*.xls
+*.csv
+
+# Horse screenshots and other local images
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
