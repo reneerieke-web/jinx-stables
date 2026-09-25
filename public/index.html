@@ -253,6 +253,12 @@
   #modalBox textarea.jsonbox{font-family:"IBM Plex Mono","Courier New",monospace; font-size:11.5px; height:160px; background:var(--ink); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px; width:100%; resize:vertical;}
   .modal-note{font-size:12px; color:var(--text-faint);}
 
+  #duplicateBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:70; display:flex; align-items:center; justify-content:center; padding:20px;}
+  #duplicateBackdrop[hidden]{display:none;}
+  #duplicateBox{background:var(--panel); border:1px solid var(--gold); border-radius:14px; box-shadow:var(--shadow); width:min(460px,100%); padding:22px; display:flex; flex-direction:column; gap:14px;}
+  #duplicateBox h2{font-size:19px;}
+  #duplicateBox .duplicate-actions{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; padding-top:8px; border-top:1px solid var(--border);}
+
   /* ---- Import wizard + first-launch chooser ---- */
   #wizardBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:40; display:flex; align-items:center; justify-content:center; padding:20px;}
   #wizardBackdrop:not([hidden]){display:flex;}
@@ -507,6 +513,10 @@
 
 <div id="modalBackdrop" hidden>
   <div id="modalBox"></div>
+</div>
+
+<div id="duplicateBackdrop" hidden>
+  <div id="duplicateBox"></div>
 </div>
 
 <div id="wizardBackdrop" hidden>
@@ -2388,8 +2398,62 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     });
   }
 
+  function normalizedHorseName(name){
+    return String(name == null ? "" : name).trim().toLowerCase();
+  }
+
+  function findExistingHorseByName(name, excludeId){
+    var key = normalizedHorseName(name);
+    if(!key) return null;
+    return horses.find(function(h){
+      return h.id !== excludeId && normalizedHorseName(h.name) === key;
+    }) || null;
+  }
+
+  function showDuplicateNamePrompt(existingHorse, onOpenExisting, onSaveAnyway){
+    var duplicateBackdrop = document.getElementById("duplicateBackdrop");
+    var duplicateBox = document.getElementById("duplicateBox");
+    duplicateBox.innerHTML =
+      '<h2>Horse name already exists</h2>' +
+      '<div>You already have a horse named <b>'+esc(existingHorse.name)+'</b>.</div>' +
+      '<div class="modal-note">Open that horse instead, or save this as a separate horse anyway?</div>' +
+      '<div class="duplicate-actions">' +
+        '<button class="btn" id="duplicateCancelBtn" type="button">Keep editing</button>' +
+        '<button class="btn" id="duplicateOpenBtn" type="button">Open '+esc(existingHorse.name)+'</button>' +
+        '<button class="btn primary" id="duplicateSaveBtn" type="button">Save as new horse anyway</button>' +
+      '</div>';
+    duplicateBackdrop.hidden = false;
+
+    function closeDuplicatePrompt(){
+      duplicateBackdrop.hidden = true;
+      duplicateBox.innerHTML = "";
+    }
+
+    document.getElementById("duplicateCancelBtn").addEventListener("click", closeDuplicatePrompt);
+    document.getElementById("duplicateOpenBtn").addEventListener("click", function(){
+      closeDuplicatePrompt();
+      onOpenExisting();
+    });
+    document.getElementById("duplicateSaveBtn").addEventListener("click", function(){
+      closeDuplicatePrompt();
+      onSaveAnyway();
+    });
+  }
+
   function saveDraft(){
     if(!readFormIntoDraft()) return;
+    var duplicate = findExistingHorseByName(draft.name, state.editingId);
+    if(duplicate){
+      showDuplicateNamePrompt(
+        duplicate,
+        function(){
+          closeEditorFn();
+          openEditor(duplicate.id);
+        },
+        commitDraft
+      );
+      return;
+    }
     commitDraft();
   }
 
@@ -2807,10 +2871,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       qaHandleScreenshotFile(f);
       e.target.value = "";
     });
-    el("mCancel").addEventListener("click", closeModal);
-    el("qaSaveBtn").addEventListener("click", function(){
-      var name = el("qaName").value.trim();
-      if(!name){ el("qaName").focus(); return; }
+    function saveQuickAddHorse(name){
       var newHorse = mk({
         name: name, tier: qaTier, sex: qaSex, level: qaLevel,
         subtype: isSpecialSubtypeTier(qaTier) ? qaSubtype : "",
@@ -2827,6 +2888,27 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         renderAll();
         showQaSavedConfirmation(newHorse);
       });
+    }
+
+    el("mCancel").addEventListener("click", closeModal);
+    el("qaSaveBtn").addEventListener("click", function(){
+      var name = el("qaName").value.trim();
+      if(!name){ el("qaName").focus(); return; }
+
+      var duplicate = findExistingHorseByName(name, null);
+      if(duplicate){
+        showDuplicateNamePrompt(
+          duplicate,
+          function(){
+            closeModal();
+            openEditor(duplicate.id);
+          },
+          function(){ saveQuickAddHorse(name); }
+        );
+        return;
+      }
+
+      saveQuickAddHorse(name);
     });
 
     modalBackdrop.hidden = false;
