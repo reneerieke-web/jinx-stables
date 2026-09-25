@@ -318,7 +318,7 @@
   .launch-title{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0;}
   .launch-welcome{font-family:"Spectral",Georgia,serif; font-size:24px; line-height:1.15;}
-  .launch-choices{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+  .launch-choices{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px;}
   .launch-choice{background:var(--panel-raised); border:1px solid var(--border); border-radius:12px; padding:18px 14px; color:var(--text); text-align:left; display:flex; flex-direction:column; gap:6px;}
   .launch-choice:hover{border-color:var(--gold);}
   .launch-choice .t{font-weight:700; font-size:14.5px;}
@@ -536,6 +536,10 @@
     <h2 class="launch-welcome">Welcome</h2>
     <p>How would you like to start? You can always import a spreadsheet later from the main screen too.</p>
     <div class="launch-choices">
+      <button class="launch-choice" id="launchExisting" type="button">
+        <span class="t">Open my existing stable</span>
+        <span class="d">Bring your Jinx’s Stables roster over from another device using a transfer or backup file.</span>
+      </button>
       <button class="launch-choice" id="launchEmpty" type="button">
         <span class="t">Start empty</span>
         <span class="d">Begin with a blank stable and add horses yourself.</span>
@@ -1435,6 +1439,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     if(!seen) storageWarnBanner.hidden = false;
   }
 
+  document.getElementById("launchExisting").addEventListener("click", function(){
+    setLaunchOpen(false);
+    openTransferModal({ fromLaunch: true });
+  });
   document.getElementById("launchEmpty").addEventListener("click", function(){
     horses = [];
     persist();
@@ -3286,41 +3294,63 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     return JSON.stringify({ schema: 2, kind: "jinx-stables-transfer", exportedAt: today(), horses: horses }, null, 2);
   }
 
-  function openTransferModal(){
+  var transferFromLaunch = false;
+
+  function closeTransferModal(){
+    var returnToLaunch = transferFromLaunch;
+    transferFromLaunch = false;
+    closeModal();
+    if(returnToLaunch) setLaunchOpen(true);
+  }
+
+  function openTransferModal(opts){
+    transferFromLaunch = !!(opts && opts.fromLaunch);
     renderTransferHome();
     modalBackdrop.hidden = false;
   }
 
   function renderTransferHome(){
     var snapshot = getPreTransferSnapshot();
+    var receiveOnly = transferFromLaunch;
     modalBox.innerHTML =
-      '<h2>Transfer Roster to Another Device</h2>' +
-      '<div class="modal-note">Moves your roster between devices by hand — nothing here syncs automatically. Screenshots are stored on this device only and are never included in a transfer file.</div>' +
+      '<h2>' + (receiveOnly ? 'Open my existing stable' : 'Transfer Roster to Another Device') + '</h2>' +
+      '<div class="modal-note">' +
+        (receiveOnly
+          ? 'On your other device, open <b>Data &amp; Backups → Transfer Roster to Another Device</b> and choose <b>Share / Save Transfer File</b>. Then select that JSON file here. An app backup JSON works too. This is a one-time copy, not automatic syncing.'
+          : 'Moves your roster between devices by hand — nothing here syncs automatically. Screenshots are stored on this device only and are never included in a transfer file.') +
+      '</div>' +
 
-      '<fieldset class="section"><legend>Send from this device</legend>' +
-        '<div class="modal-note">Creates a file with all ' + horses.length + ' horses currently in the app.</div>' +
-        '<div class="editor-actions" style="padding-top:0; border-top:none;"><button class="btn primary" id="transferSendBtn">Share / Save Transfer File</button></div>' +
-        '<div id="transferSendNote" class="modal-note"></div>' +
-      '</fieldset>' +
+      (receiveOnly ? '' :
+        '<fieldset class="section"><legend>Send from this device</legend>' +
+          '<div class="modal-note">Creates a file with all ' + horses.length + ' horses currently in the app.</div>' +
+          '<div class="editor-actions" style="padding-top:0; border-top:none;"><button class="btn primary" id="transferSendBtn">Share / Save Transfer File</button></div>' +
+          '<div id="transferSendNote" class="modal-note"></div>' +
+        '</fieldset>') +
 
-      '<fieldset class="section"><legend>Receive on this device</legend>' +
-        '<div class="modal-note">Load a transfer file made on another device. You\'ll see exactly what would change before anything is applied — nothing is saved until you choose Merge or Replace Local on the next screen.</div>' +
-        '<div class="field"><label for="transferFileInput">Load a transfer file</label><input id="transferFileInput" type="file" accept="application/json,.json"></div>' +
+      '<fieldset class="section"><legend>' + (receiveOnly ? 'Choose your stable file' : 'Receive on this device') + '</legend>' +
+        '<div class="modal-note">' +
+          (receiveOnly
+            ? 'Choose the Jinx’s Stables transfer or app backup file from your other device. You’ll preview it before anything is saved here.'
+            : 'Load a transfer file made on another device. You\'ll see exactly what would change before anything is applied — nothing is saved until you choose Merge or Replace Local on the next screen.') +
+        '</div>' +
+        '<div class="field"><label for="transferFileInput">Load a Jinx’s Stables JSON file</label><input id="transferFileInput" type="file" accept="application/json,.json"></div>' +
         '<div id="transferReceiveWarn" class="project-warn" hidden></div>' +
       '</fieldset>' +
 
-      (snapshot ?
+      (!receiveOnly && snapshot ?
         '<div class="modal-note">Safety snapshot from your last transfer (' + esc(formatSnapshotTime(snapshot.savedAt)) + ', ' + snapshot.horses.length + ' horses) is still available.' +
         ' <button class="btn small" type="button" id="transferUndoBtn">Undo last transfer</button></div>'
         : '') +
 
-      '<div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
+      '<div class="modal-actions"><button class="btn" id="mCancel">' + (receiveOnly ? 'Back' : 'Close') + '</button></div>';
 
-    el("mCancel").addEventListener("click", closeModal);
+    el("mCancel").addEventListener("click", closeTransferModal);
 
-    el("transferSendBtn").addEventListener("click", function(){
-      transferShareOrSave("jinx-stables-transfer-" + today() + ".json", transferBuildJSON(), el("transferSendNote"), el("transferSendBtn"));
-    });
+    if(!receiveOnly){
+      el("transferSendBtn").addEventListener("click", function(){
+        transferShareOrSave("jinx-stables-transfer-" + today() + ".json", transferBuildJSON(), el("transferSendNote"), el("transferSendBtn"));
+      });
+    }
 
     el("transferFileInput").addEventListener("change", function(){
       var f = this.files[0];
@@ -3351,7 +3381,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       reader.readAsText(f);
     });
 
-    if(snapshot){
+    if(snapshot && !receiveOnly){
       var undoArmed = false;
       el("transferUndoBtn").addEventListener("click", function(){
         if(!undoArmed){
@@ -3400,7 +3430,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         '<button class="btn danger" id="transferReplaceBtn">Replace Local</button> ' +
         '<button class="btn primary" id="transferMergeBtn">Merge (recommended)</button></div></div>';
 
-    el("mCancel").addEventListener("click", closeModal);
+    el("mCancel").addEventListener("click", closeTransferModal);
     el("transferBack").addEventListener("click", renderTransferHome);
 
     el("transferMergeBtn").addEventListener("click", function(){
@@ -3421,6 +3451,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       markSeeded();
       showingSample = false;
       sampleBanner.hidden = true;
+      transferFromLaunch = false;
       closeModal();
       renderAll();
     });
@@ -3442,6 +3473,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       markSeeded();
       showingSample = false;
       sampleBanner.hidden = true;
+      transferFromLaunch = false;
       closeModal();
       renderAll();
     });
