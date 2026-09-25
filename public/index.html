@@ -365,7 +365,8 @@
     .launch-hero img{border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);}
     .launch-title{position:static; width:auto; height:auto; margin:10px 0 0; padding:0; overflow:visible; clip:auto; white-space:normal;
       font-family:"Spectral",Georgia,"Times New Roman",serif; font-weight:600; font-size:clamp(1.55rem,6.5vw,1.9rem);
-      color:#D6B76A; letter-spacing:.035em; text-shadow:0 1px 0 rgba(0,0,0,.55);}
+      color:#D6B76A; letter-spacing:.02em; font-kerning:normal; text-shadow:0 1px 0 rgba(0,0,0,.55);}
+    .launch-apostrophe{display:inline-block; letter-spacing:0; margin-right:-.14em;}
     .launch-welcome{font-size:21px; line-height:1.15;}
     .launch-legal{font-size:9px; line-height:1.35; padding:2px 4px 0;}
   }
@@ -520,7 +521,7 @@
         <img src="assets/hero-horses.webp"
           alt="Three fantasy horses—a white unicorn, a black-and-white pinto, and a winged bay—standing in a lantern-lit stable courtyard at dusk">
       </picture>
-      <h1 class="launch-title">Jinx’s Stables</h1>
+      <h1 class="launch-title">Jinx<span class="launch-apostrophe">’</span>s Stables</h1>
     </section>
     <h2 class="launch-welcome">Welcome</h2>
     <p>How would you like to start? You can always import a spreadsheet later from the main screen too.</p>
