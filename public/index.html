@@ -116,6 +116,9 @@
   .btn.primary:hover{filter:brightness(1.08);}
   .btn.danger{background:transparent; color:var(--danger); border-color:var(--danger);}
   .btn.small{padding:7px 12px; font-size:12.5px;}
+  #signOutBtn.logout-btn{background:rgba(185,113,95,.13); color:#F0B7A7; border-color:#8F594C; white-space:nowrap;}
+  #signOutBtn.logout-btn:hover{background:rgba(185,113,95,.24); border-color:#D58B78;}
+  #signOutBtn.logout-btn:disabled{opacity:.65; cursor:wait;}
   .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .card:focus-visible, .chip:focus-visible, .tab:focus-visible{
     outline:2px solid var(--gold); outline-offset:2px;
   }
@@ -469,7 +472,7 @@
         </div>
       </div>
       <span id="cloudStatus" data-state="idle" aria-live="polite"></span>
-      <button class="btn small" id="signOutBtn" type="button" hidden>Sign out</button>
+      <button class="btn small logout-btn" id="signOutBtn" type="button" hidden aria-label="Log out of this stable account">↪ Log out</button>
       <button class="btn" id="exchangeBtn">+ Log exchange</button>
       <button class="btn" id="addBtn">+ Log a new horse</button>
       <button class="btn primary" id="quickAddBtn">⚡ Quick Add</button>
@@ -2401,8 +2404,20 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     });
 
     document.getElementById("signOutBtn").addEventListener("click", async function(){
-      await cloudClient.auth.signOut();
-      resetCloudSessionUI();
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Logging out…";
+      setCloudStatus("Ending this browser session…", "saving");
+      try{
+        var result = await cloudClient.auth.signOut({ scope: "local" });
+        if(result && result.error) throw result.error;
+        resetCloudSessionUI();
+      }catch(error){
+        setCloudStatus("Logout failed — please try again", "error");
+      }finally{
+        btn.disabled = false;
+        btn.textContent = "↪ Log out";
+      }
     });
 
     cloudClient.auth.onAuthStateChange(function(event, session){
