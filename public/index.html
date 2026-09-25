@@ -1,3 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B211C">
+<meta name="description" content="A private-by-default Black Desert Online horse roster, breeding, training, and Courser tracker.">
 <title>Jinx's Stables</title>
 <style>
   :root{
@@ -329,14 +336,28 @@
     .two-col{grid-template-columns:1fr;}
     #editor{width:100%;}
     .wiz-mapping-grid{grid-template-columns:1fr;}
-    .launch-choices{grid-template-columns:1fr;}
-    .launch-box{gap:16px;}
-    .launch-hero{overflow:visible; border:0; box-shadow:none; background:transparent;}
+
+    /* Mobile launch screen: use the real phone viewport, stack the choices,
+       and let the chooser scroll if browser chrome reduces usable height. */
+    #launchChooser{
+      align-items:flex-start;
+      justify-content:flex-start;
+      overflow-y:auto;
+      padding:max(18px, env(safe-area-inset-top, 0px)) 14px
+              max(24px, env(safe-area-inset-bottom, 0px));
+    }
+    .launch-box{width:100%; max-width:520px; margin:0 auto; gap:14px;}
+    .launch-box p{margin:0; font-size:13px; line-height:1.45;}
+    .launch-choices{grid-template-columns:1fr; gap:10px;}
+    .launch-choice{min-height:64px; padding:14px 15px;}
+    .launch-choice .t{font-size:15px;}
+    .launch-choice .d{font-size:12.5px; line-height:1.35;}
+    .launch-hero{max-width:100%; overflow:visible; border:0; box-shadow:none; background:transparent;}
     .launch-hero img{border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);}
     .launch-title{position:static; width:auto; height:auto; margin:10px 0 0; padding:0; overflow:visible; clip:auto; white-space:normal;
       font-family:"Spectral",Georgia,"Times New Roman",serif; font-weight:600; font-size:clamp(1.55rem,6.5vw,1.9rem);
       color:#D6B76A; letter-spacing:.035em; text-shadow:0 1px 0 rgba(0,0,0,.55);}
-    .launch-welcome{font-size:21px;}
+    .launch-welcome{font-size:21px; line-height:1.15;}
   }
 </style>
 
@@ -344,6 +365,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 
+</head>
+<body>
 <div id="bgLayer"></div>
 <canvas id="bgParticles"></canvas>
 <div id="bgOverlay"></div>
@@ -4286,3 +4309,5 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   refreshScreenshotIdCache().then(function(){ renderGrid(); });
 })();
 </script>
+</body>
+</html>
