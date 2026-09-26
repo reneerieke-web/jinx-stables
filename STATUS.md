@@ -7,8 +7,8 @@ Updated: September 26, 2026 (ET)
 - **Current builder:** Codex
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
-- **Last code change:** current commit — per-theme panel and accent palettes applied on top of `398e677`
-- **Review status:** `398e677` passed Claude’s review; the current theme-only change is ready for Claude’s review
+- **Last code change:** current commit — theme-aware desktop header, phone panels, and phone editor Save bar on top of `c31c786`
+- **Review status:** Claude reviewed `c31c786` as safe and supplied the current CSS-only follow-up; the follow-up is ready for Claude’s review
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -31,16 +31,16 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Coat fields are simplified into color group, standardized appearance, and automatically populated coat code (`4c596a3`).
 - Desktop Option A header is implemented: cloud status left, centered title/count, Add Horse plus right-aligned menu; count wording now says “stable” (`398e677`).
 - Claude verified `398e677` at desktop and phone sizes, including all 28 editor fields on phone.
-- Moonlit, Autumn, Snowy, Desert, and Black Spirit now use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (current commit).
+- Moonlit, Autumn, Snowy, Desert, and Black Spirit use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (`c31c786`).
+- The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (current commit).
 
 ## Next
 
-1. Claude reviews the current theme-only commit at 1366px, 1024px, and 390px before Renee tests it.
+1. Claude reviews the current theme follow-up before Renee tests it.
 2. Renee tests the reviewed `cloud-sync-preview` deployment.
 3. Decide whether to make Claude’s optional header-review refinements:
    - make Appearance the same size as the other desktop menu items;
    - clarify that the first count is for the current tab;
-   - use `var(--panel)` for the desktop header background;
    - make keyboard Tab order match the visual menu order without CSS `order`.
 4. Continue coat-description review and data validation as Renee confirms coats.
 

@@ -294,7 +294,7 @@
   @media (min-width:641px){
     header.top{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
       gap:18px; flex-wrap:nowrap; padding:14px 20px; border:1px solid var(--border); border-radius:14px;
-      background:rgba(36,43,36,.86); box-shadow:0 8px 24px rgba(0,0,0,.18);}
+      background:rgba(36,43,36,.86); background:color-mix(in srgb, var(--panel) 86%, transparent); box-shadow:0 8px 24px rgba(0,0,0,.18);}
     header.top > #cloudStatus{grid-column:1; justify-self:start; display:inline-flex; align-items:center; gap:7px;}
     header.top > #cloudStatus::before{content:""; width:9px; height:9px; flex:0 0 9px; border-radius:50%;
       background:var(--text-faint); box-shadow:0 0 0 3px rgba(110,119,104,.13);}
@@ -474,6 +474,11 @@
     #appearancePanel > label[for="themeSelect"], #themeSelect,
     #appearancePanel > label[for="darknessRange"], #darknessRange,
     #appearancePanel > .modal-note{display:none;}
+    /* On phones the Phone theme decides panel colors, so a desktop theme
+       saved on this device can't leave brown or purple cards on a blue screen. */
+    body[data-phone-theme="dark"]{--ink:#1B211C; --panel:#242B24; --panel-raised:#2C342C; --border:#3A4438; --text:#EAE6D9; --gold:#C99A44; --gold-soft:#3A331F; --text-soft:#9CA595; --text-faint:#6E7768;}
+    body[data-phone-theme="amber"]{--ink:#1F1911; --panel:#2A2217; --panel-raised:#342A1C; --border:#4C3D28; --text:#EAE6D9; --gold:#E0A84A; --gold-soft:#3D2F18; --text-soft:#B8A68A; --text-faint:#7F6F58;}
+    body[data-phone-theme="blue"]{--ink:#121A26; --panel:#192434; --panel-raised:#212E42; --border:#34445C; --text:#EEF3F8; --gold:#9FC4EC; --gold-soft:#223349; --text-soft:#A3B3C6; --text-faint:#6F8196;}
     body[data-phone-theme="dark"] #bgLayer{background:#101612;}
     body[data-phone-theme="amber"] #bgLayer{background:linear-gradient(155deg,#2D2517 0%,#1B1D17 52%,#101511 100%);}
     body[data-phone-theme="blue"] #bgLayer{background:linear-gradient(155deg,#17253A 0%,#111B2B 52%,#0B111C 100%);}
@@ -544,7 +549,7 @@
     #editorSaveBar{position:sticky; z-index:4; bottom:0; width:calc(100% + 26px); max-width:none;
       margin:0 -13px -16px; padding:12px 13px calc(12px + env(safe-area-inset-bottom,0px));
       display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
-      background:rgba(36,43,36,.97); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
+      background:rgba(36,43,36,.97); background:color-mix(in srgb, var(--panel) 97%, transparent); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
     #editorSaveBar .btn{min-height:44px; min-width:0; white-space:nowrap;}
     #editorSaveBar #saveBtn{justify-self:end; margin-left:0 !important;}
     #modalBox{max-height:92vh; padding:18px 14px;}
