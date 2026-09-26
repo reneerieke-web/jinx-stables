@@ -713,7 +713,7 @@
     <div class="launch-choices">
       <button class="launch-choice" id="launchExisting" type="button">
         <span class="t">Open my existing stable</span>
-        <span class="d">Sign in with Google or Discord and open the stable already saved to your account.</span>
+        <span class="d">Sign in with Discord and open the stable already saved to your account.</span>
       </button>
       <button class="launch-choice" id="launchEmpty" type="button">
         <span class="t">Start an empty stable</span>
@@ -1699,9 +1699,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     try{ sessionStorage.removeItem(CLOUD_LAUNCH_ACTION_KEY); }catch(e){}
   }
   function authPromptFor(action){
-    if(action === "empty") return "Choose Google or Discord. Your new empty stable will be saved to that account.";
-    if(action === "import") return "Choose Google or Discord. After sign-in, your spreadsheet importer will open and the imported stable will save to that account.";
-    return "Choose Google or Discord to open the stable already saved to your account.";
+    if(action === "empty") return "Continue with Discord. Your new empty stable will be saved to that account.";
+    if(action === "import") return "Continue with Discord. After sign-in, your spreadsheet importer will open and the imported stable will save to that account.";
+    return "Continue with Discord to open the stable already saved to your account.";
   }
   function beginAccountLaunch(action){
     setPendingLaunchAction(action);
