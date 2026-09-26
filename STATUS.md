@@ -7,8 +7,8 @@ Updated: September 26, 2026 (ET)
 - **Current builder:** Codex
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
-- **Last code commit:** `791d689` — Desert Sunset recolor, built on `15405c3`
-- **Review status:** Codex reviewed `791d689`: CSS and `STATUS.md` only, with no JavaScript, sync, authentication, or data changes
+- **Last code commit:** `6543f03` — SheetJS 0.20.3 core upgrade and spreadsheet import limits, following tier XSS fix `77a17b0`
+- **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -35,15 +35,25 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Moonlit, Autumn, Snowy, Desert, and Black Spirit use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (`c31c786`).
 - The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (`15405c3`, authored by Claude, reviewed by Codex).
 - Desert Sunset now reads as a sunset: violet sky fading through plum and rose to an orange horizon glow, with plum panels and a sunset-orange accent (`791d689`, authored by Claude, reviewed by Codex).
+- Security checkpoint status: Mini declined the targeted audit and is no longer responsible for it. Codex completed a read-only code/configuration review of `e564461`; its unpublished `7540b39` commit was intentionally discarded after these findings were retained here. Ownership/RLS policies are structured correctly, anonymous users have no table access, signed-in users have no hard-delete grant, and no service-role key is in the page. Claude independently confirmed those same four points.
+- Tier XSS is fixed (`77a17b0`): restored/imported tiers are restricted to `TIER_LABEL`, and the tier badge is escaped before HTML rendering. Claude’s exploit test fired before the fix and zero times afterward on desktop and phone; a real full-stable backup retained every valid tier.
+- SheetJS is upgraded from 0.18.5 to the 0.20.3 core build (`6543f03`), with 5 MB and 2,000-row import limits and formulas/HTML disabled while parsing. Codex downloaded the official file from `cdn.sheetjs.com`; it and the embedded copy are byte-for-byte identical at 507,212 bytes with SHA-256 `197255b0c278588117e45c14c1b25398562864cd9ffa9752c4b4d29f6d9bfd27`.
+- Launch Step 2 completed: `https://jinxsstables.com` and `https://www.jinxsstables.com` are included in `CLOUD_ALLOWED_ORIGINS`, ready for the later custom-domain connection.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
+
+## Security checkpoint
+
+- **Tier XSS: FIXED AND REVIEWED.** A crafted JSON backup or transfer file could previously place an unescaped value in the card tier badge. `mk()` now accepts only tiers listed in `TIER_LABEL` (anything else becomes Tier 8), and `cardBody()` escapes the badge value.
+- **Spreadsheet reader: FIXED AND REVIEWED.** SheetJS 0.18.5 was replaced by the verified official-equivalent 0.20.3 core build. Imports over 5 MB or 2,000 rows are refused with a clear message; parsing stops at the limit and skips formulas and HTML. Claude tested the real 77-row roster, oversized XLSX/CSV files, and export equivalence.
+- **Cross-account isolation: PASSED.** With Renee’s approval, Claude ran 26 attacks as a simulated second authenticated user inside a forced-rollback transaction. Cross-account horse and stable reads/writes, ownership changes, deletes, truncate, `auth.users` access, and anonymous access were all blocked. Control checks showed the simulated user could still use its own stable. Renee’s before/after fingerprints matched, and no test users remained.
+- **Non-blocking:** Supabase leaked-password protection is off, which is not applicable while sign-in is Discord-only.
 
 ## Next
 
-1. Review Claude’s security commits `77a17b0` and `6543f03`, including verifying the embedded SheetJS 0.20.3 core build against the official SHA-256, then merge them into `cloud-sync-preview` if they pass.
-2. Add `https://jinxsstables.com` and `https://www.jinxsstables.com` to `CLOUD_ALLOWED_ORIGINS`, then obtain Claude’s review and Renee’s phone/desktop approval.
-3. Fast-forward `main` only after Renee approves the preview.
-4. Connect `jinxsstables.com` (double **s**) only after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
-5. Do not begin the horse-advisor and coat-picker feature until the custom domain is live.
+1. Claude reviews the merged security changes and production-origin allowlist; Renee tests the preview on phone and desktop.
+2. Fast-forward `main` only after Renee approves the preview.
+3. Connect `jinxsstables.com` (double **s**) only after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
+4. Do not begin the horse-advisor and coat-picker feature until the custom domain is live.
 
 ## Domain deployment
 
@@ -63,4 +73,5 @@ When `jinxsstables.com` is connected, update these three items together:
 - Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
 - Do not merge to `main` until the security commits are reviewed, the preview is tested, and Renee gives approval; do not connect `jinxsstables.com` until production is confirmed and Renee approves each configuration step.
 - Do not begin the horse-advisor and coat-picker feature until the launch and custom-domain work is complete.
+- Do not run live attack tests against Renee’s real stable.
 - Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
