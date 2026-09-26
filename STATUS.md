@@ -34,13 +34,13 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Moonlit, Autumn, Snowy, Desert, and Black Spirit use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (`c31c786`).
 - The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (`15405c3`, authored by Claude, reviewed by Codex).
 - Desert Sunset now reads as a sunset: violet sky fading through plum and rose to an orange horizon glow, with plum panels and a sunset-orange accent (`791d689`, authored by Claude, reviewed by Codex).
+- The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Next
 
-1. Identify the stray Google-provider test user and its empty stable in Supabase. Delete only after Renee confirms the exact user ID; then disable Google Auth only with Renee’s approval.
-2. Mini security checkpoint — plan approved, waiting on the green light.
-3. Merge `cloud-sync-preview` into `main` — Renee’s approval required.
-4. Connect `jinxsstables.com` (double **s**) only after the security checkpoint and production merge.
+1. Mini security checkpoint — plan approved, waiting on the green light.
+2. Merge `cloud-sync-preview` into `main` — Renee’s approval required.
+3. Connect `jinxsstables.com` (double **s**) only after the security checkpoint and production merge.
 
 ## Domain deployment
 
