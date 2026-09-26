@@ -22,6 +22,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Done
 
+- Launch Step 0 completed: authenticated GitHub repository access was restored and verified; the unpublished local commits `7540b39` and `3c0ae2b` were intentionally discarded, returning the local `cloud-sync-preview` branch to the shared `e564461` head.
 - Cloud authentication and synchronization safety work is in place on `cloud-sync-preview`.
 - Sample horses remain memory-only and are excluded from device-data upload prompts (`d71c01e`).
 - Phone roster layout, filters, menus, editor sections, and Add Horse flow are implemented.
@@ -38,9 +39,11 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Mini security checkpoint — plan approved, waiting on the green light.
-2. Merge `cloud-sync-preview` into `main` — Renee’s approval required.
-3. Connect `jinxsstables.com` (double **s**) only after the security checkpoint and production merge.
+1. Review Claude’s security commits `77a17b0` and `6543f03`, including verifying the embedded SheetJS 0.20.3 core build against the official SHA-256, then merge them into `cloud-sync-preview` if they pass.
+2. Add `https://jinxsstables.com` and `https://www.jinxsstables.com` to `CLOUD_ALLOWED_ORIGINS`, then obtain Claude’s review and Renee’s phone/desktop approval.
+3. Fast-forward `main` only after Renee approves the preview.
+4. Connect `jinxsstables.com` (double **s**) only after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
+5. Do not begin the horse-advisor and coat-picker feature until the custom domain is live.
 
 ## Domain deployment
 
@@ -58,5 +61,6 @@ When `jinxsstables.com` is connected, update these three items together:
 - Do not modify sync, authentication, or stored-data behavior during visual/layout work.
 - Do not change Supabase without Renee’s explicit approval and the baton.
 - Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
-- Do not merge to `main` or connect `jinxsstables.com` until Mini’s security results are complete and Renee gives approval.
+- Do not merge to `main` until the security commits are reviewed, the preview is tested, and Renee gives approval; do not connect `jinxsstables.com` until production is confirmed and Renee approves each configuration step.
+- Do not begin the horse-advisor and coat-picker feature until the launch and custom-domain work is complete.
 - Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
