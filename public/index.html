@@ -110,6 +110,10 @@
   header.top h1{font-size:30px; font-weight:600; letter-spacing:.01em;}
   header.top .count{font-size:13.5px; color:var(--text-soft);}
   header.top .actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .desktop-menu-controls{display:flex; align-items:center; justify-content:flex-end; gap:8px;}
+  .desktop-menu-wrap{position:relative; display:inline-flex;}
+  #headerMenuDivider{border:0; border-top:1px solid var(--border); width:100%; margin:2px 0;}
+  #headerMenuDivider:has(+ #signOutBtn[hidden]){display:none;}
   .btn{border-radius:8px; border:1px solid var(--border); background:var(--panel-raised); color:var(--text); padding:10px 16px; font-weight:600; font-size:13.5px;}
   .btn:hover{border-color:var(--gold);}
   .btn.primary{background:var(--gold); color:#20180B; border-color:var(--gold);}
@@ -277,6 +281,37 @@
   #cloudStatus[data-state="saving"]{color:var(--gold);}
   #cloudStatus[data-state="error"]{color:var(--danger);}
   #cloudStatus[data-state="saved"]{color:var(--keeper);}
+  .desktop-only{display:inline;}
+  @media (min-width:641px){
+    header.top{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
+      gap:18px; flex-wrap:nowrap; padding:14px 20px; border:1px solid var(--border); border-radius:14px;
+      background:rgba(36,43,36,.86); box-shadow:0 8px 24px rgba(0,0,0,.18);}
+    header.top > #cloudStatus{grid-column:1; justify-self:start; display:inline-flex; align-items:center; gap:7px;}
+    header.top > #cloudStatus::before{content:""; width:9px; height:9px; flex:0 0 9px; border-radius:50%;
+      background:var(--text-faint); box-shadow:0 0 0 3px rgba(110,119,104,.13);}
+    header.top > #cloudStatus[data-state="saving"]::before{background:var(--gold); box-shadow:0 0 0 3px rgba(201,154,68,.14);}
+    header.top > #cloudStatus[data-state="saved"]::before{background:var(--keeper); box-shadow:0 0 0 3px rgba(127,160,107,.16);}
+    header.top > #cloudStatus[data-state="error"]::before{background:var(--danger); box-shadow:0 0 0 3px rgba(194,91,76,.16);}
+    header.top .title-block{grid-column:2; flex-direction:column; align-items:center; gap:1px; min-width:240px; text-align:center;}
+    header.top h1{font-size:30px; line-height:1.05; white-space:nowrap;}
+    header.top .count{font-size:12px; line-height:1.25; white-space:nowrap;}
+    header.top .desktop-menu-controls{grid-column:3; justify-self:end; min-width:max-content;}
+    header.top .actions{display:none; position:absolute; z-index:18; top:calc(100% + 8px); right:0; width:250px;
+      padding:10px; border:1px solid var(--border); border-radius:12px; background:var(--panel-raised);
+      box-shadow:var(--shadow); flex-direction:column; align-items:stretch; gap:6px;}
+    header.top .actions.desktop-open{display:flex;}
+    header.top .actions > .btn, header.top .actions .dropdown-wrap,
+    header.top .actions .dropdown-wrap > .btn{width:100%;}
+    header.top .actions > .btn, header.top .actions .dropdown-wrap > .btn{text-align:left;}
+    header.top .actions .dropdown-wrap{display:flex; flex-direction:column; align-items:stretch;}
+    header.top .actions .dropdown-panel{position:static; width:100%; max-height:58vh; overflow-y:auto;
+      margin-top:6px; box-shadow:none; background:var(--ink);}
+    header.top .actions #exchangeBtn{order:1;}
+    header.top .actions #dataMenuWrap{order:2;}
+    header.top .actions #appearanceWrap{order:3;}
+    header.top .actions #headerMenuDivider{order:4;}
+    header.top .actions #signOutBtn{order:5;}
+  }
   .mobile-only{display:none;}
   .mobile-filter-bar,.mobile-card-summary,.mobile-sheet-head{display:none;}
   .phone-theme-control{display:none;}
@@ -394,6 +429,7 @@
     .wiz-mapping-grid{grid-template-columns:1fr;}
 
     .mobile-only{display:flex;}
+    .desktop-only{display:none;}
 
     /* Compact app header. The full desktop action group becomes the
        hamburger menu without changing any of its existing controls. */
@@ -406,6 +442,8 @@
     #mobileCloudDot[data-state="saved"]{background:var(--keeper); box-shadow:0 0 0 3px rgba(127,160,107,.18);}
     #mobileCloudDot[data-state="error"]{background:var(--danger); box-shadow:0 0 0 3px rgba(194,91,76,.18);}
     #mobileMenuBtn{width:42px; height:42px; align-items:center; justify-content:center; padding:0; font-size:22px;}
+    header.top > #cloudStatus, #desktopMenuBtn{display:none;}
+    header.top .desktop-menu-controls, header.top .desktop-menu-wrap{display:contents;}
     header.top .actions{display:none; position:absolute; z-index:18; top:calc(100% + 6px); right:0; width:min(340px,calc(100vw - 24px));
       max-height:calc(100vh - 100px); overflow-y:auto; padding:12px; border:1px solid var(--border); border-radius:12px;
       background:var(--panel-raised); box-shadow:var(--shadow); flex-direction:column; align-items:stretch; gap:8px;}
@@ -413,7 +451,8 @@
     header.top .actions > .btn, header.top .actions .dropdown-wrap, header.top .actions .dropdown-wrap > .btn{width:100%;}
     header.top .actions .dropdown-wrap{display:flex; flex-direction:column; align-items:stretch;}
     header.top .actions .dropdown-panel{position:static; width:100%; max-height:none; margin-top:8px; box-shadow:none; background:var(--ink);}
-    header.top .actions #cloudStatus, header.top .actions #addBtn{display:none;}
+    header.top .actions #headerMenuDivider{display:none;}
+    header.top > .desktop-menu-controls > #addBtn{display:none;}
 
     #mobileAddFab{display:flex; position:fixed; z-index:17; right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
       width:58px; height:58px; align-items:center; justify-content:center; border:0; border-radius:50%;
@@ -479,7 +518,8 @@
 
     /* Every editor section can collapse on a phone. Color data and history
        start closed; desktop keeps the original continuously-open form. */
-    #editor .ehead{position:sticky; top:-16px; z-index:3; margin:-16px -14px 0; padding:14px; background:var(--panel); border-bottom:1px solid var(--border);}
+    #editor .ehead{position:sticky; top:-16px; z-index:3; width:calc(100% + 26px); max-width:none;
+      margin:-16px -13px 0; padding:14px 13px; background:var(--panel); border-bottom:1px solid var(--border);}
     fieldset.section.mobile-collapsible > legend{width:100%; cursor:pointer; padding:2px 4px;}
     fieldset.section.mobile-collapsible > legend::after{content:"⌃"; float:right; color:var(--text-soft); font-size:14px;}
     fieldset.section.mobile-collapsible.mobile-collapsed > legend::after{content:"⌄";}
@@ -492,8 +532,8 @@
     .skills-head .count{margin-left:auto;}
     .history-add{min-width:0;}
     .history-add input{min-width:0;}
-    #editorSaveBar{position:sticky; z-index:4; bottom:0;
-      margin:0 -14px -16px; padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+    #editorSaveBar{position:sticky; z-index:4; bottom:0; width:calc(100% + 26px); max-width:none;
+      margin:0 -13px -16px; padding:12px 13px calc(12px + env(safe-area-inset-bottom,0px));
       display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
       background:rgba(36,43,36,.97); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
     #editorSaveBar .btn{min-height:44px; min-width:0; white-space:nowrap;}
@@ -545,15 +585,20 @@
 -->
 <div id="app">
   <header class="top">
+    <span id="cloudStatus" data-state="idle" aria-live="polite"></span>
     <div class="title-block">
       <h1 id="appTitle" title="Curious? Click me a few times.">Jinx’s Stables</h1>
       <span class="count" id="countLabel"></span>
       <span class="mobile-only" id="mobileCloudDot" data-state="idle" role="status" aria-label="Cloud status"></span>
     </div>
     <button class="btn mobile-only" id="mobileMenuBtn" type="button" aria-expanded="false" aria-label="Open stable menu">☰</button>
-    <div class="actions">
+    <div class="desktop-menu-controls">
+      <button class="btn primary" id="addBtn">+ Add horse</button>
+      <div class="desktop-menu-wrap">
+        <button class="btn" id="desktopMenuBtn" type="button" aria-expanded="false" aria-label="Open stable menu">☰ Menu</button>
+        <div class="actions">
       <div class="dropdown-wrap" id="dataMenuWrap">
-        <button class="btn" id="dataMenuBtn" type="button" aria-expanded="false">Data &amp; Backups ▾</button>
+        <button class="btn" id="dataMenuBtn" type="button" aria-expanded="false"><span class="desktop-only">Data &amp; Backups</span><span class="mobile-only">Data &amp; Backups ▾</span></button>
         <div id="dataMenuPanel" class="dropdown-panel" hidden>
           <h3>Data &amp; Backups</h3>
           <button class="btn" id="exportBtn">Export App Backup (JSON)</button>
@@ -600,10 +645,11 @@
           <div class="modal-note" style="font-size:12px;">Themes are built from plain CSS gradients, so they keep working even with this file opened offline.</div>
         </div>
       </div>
-      <span id="cloudStatus" data-state="idle" aria-live="polite"></span>
-      <button class="btn small logout-btn" id="signOutBtn" type="button" hidden aria-label="Log out of this stable account">↪ Log out</button>
-      <button class="btn" id="exchangeBtn">+ Log exchange</button>
-      <button class="btn primary" id="addBtn">+ Add horse</button>
+      <hr id="headerMenuDivider">
+      <button class="btn small logout-btn" id="signOutBtn" type="button" hidden aria-label="Log out of this stable account"><span class="desktop-only">Log out</span><span class="mobile-only">↪ Log out</span></button>
+      <button class="btn" id="exchangeBtn"><span class="desktop-only">Log exchange</span><span class="mobile-only">+ Log exchange</span></button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2100,7 +2146,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     if(typeof refreshSearchClear === "function") refreshSearchClear();
     var visible = sortHorses(horses.filter(matches));
     var capsuleTotal = horses.filter(function(h){return capsuleOf(h)===state.capsule;}).length;
-    countLabel.textContent = visible.length + " of " + capsuleTotal + " in this capsule · " + horses.length + " total";
+    countLabel.textContent = visible.length + " of " + capsuleTotal + " in this stable · " + horses.length + " total";
     grid.innerHTML = "";
     emptyState.hidden = visible.length>0;
     emptyState.textContent = emptyMessage();
@@ -5559,6 +5605,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
   var headerActions = document.querySelector("header.top .actions");
   var mobileMenuBtn = document.getElementById("mobileMenuBtn");
+  var desktopMenuBtn = document.getElementById("desktopMenuBtn");
+  var desktopMenuWrap = document.querySelector(".desktop-menu-wrap");
   function closeMobileMenu(){
     headerActions.classList.remove("mobile-open");
     document.body.classList.remove("mobile-menu-open");
@@ -5571,12 +5619,29 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     document.body.classList.toggle("mobile-menu-open", willOpen);
     mobileMenuBtn.setAttribute("aria-expanded", String(willOpen));
   });
-  document.addEventListener("click", function(e){
-    if(headerActions.contains(e.target) || e.target === mobileMenuBtn) return;
-    closeMobileMenu();
+  function closeDesktopMenu(){
+    headerActions.classList.remove("desktop-open");
+    desktopMenuBtn.setAttribute("aria-expanded", "false");
+  }
+  desktopMenuBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    var willOpen = !headerActions.classList.contains("desktop-open");
+    headerActions.classList.toggle("desktop-open", willOpen);
+    desktopMenuBtn.setAttribute("aria-expanded", String(willOpen));
   });
-  document.getElementById("exchangeBtn").addEventListener("click", closeMobileMenu);
-  document.getElementById("signOutBtn").addEventListener("click", closeMobileMenu);
+  document.addEventListener("click", function(e){
+    if(!headerActions.contains(e.target) && e.target !== mobileMenuBtn) closeMobileMenu();
+    if(!desktopMenuWrap.contains(e.target)) closeDesktopMenu();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Escape") return;
+    closeMobileMenu();
+    closeDesktopMenu();
+    openDropdowns.forEach(function(panel){ panel.hidden = true; });
+    document.querySelectorAll("#dataMenuBtn,#appearanceBtn").forEach(function(btn){ btn.setAttribute("aria-expanded", "false"); });
+  });
+  document.getElementById("exchangeBtn").addEventListener("click", function(){ closeMobileMenu(); closeDesktopMenu(); });
+  document.getElementById("signOutBtn").addEventListener("click", function(){ closeMobileMenu(); closeDesktopMenu(); });
 
   // Mirror the existing status element into the phone-only dot without
   // changing the cloud state machine that owns that element.
