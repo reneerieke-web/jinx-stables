@@ -4,11 +4,12 @@ Updated: September 26, 2026 (ET)
 
 ## Baton
 
-- **Current builder:** Codex
+- **Current builder:** Codex (out until about 1:42 PM ET on September 26; Renee handed Claude the Desert Sunset recolor only)
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
-- **Last code change:** current commit — theme-aware desktop header, phone panels, and phone editor Save bar on top of `c31c786`
-- **Review status:** Claude reviewed `c31c786` as safe and supplied the current CSS-only follow-up; the follow-up is ready for Claude’s review
+- **Last code change on `cloud-sync-preview`:** `15405c3` — theme-aware desktop header, phone panels, and phone editor Save bar on top of `c31c786`
+- **Pending on `claude/focused-bardeen-ikb2lu`:** Desert Sunset recolor by Claude, built on `15405c3`, waiting for Codex review and merge
+- **Review status:** Claude reviewed `c31c786` as safe. Claude authored the `15405c3` follow-up, so Codex’s line-by-line check before committing it is the independent review. The Desert Sunset recolor still needs Codex’s review.
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -32,17 +33,19 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Desktop Option A header is implemented: cloud status left, centered title/count, Add Horse plus right-aligned menu; count wording now says “stable” (`398e677`).
 - Claude verified `398e677` at desktop and phone sizes, including all 28 editor fields on phone.
 - Moonlit, Autumn, Snowy, Desert, and Black Spirit use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (`c31c786`).
-- The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (current commit).
+- The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (`15405c3`, authored by Claude, reviewed by Codex).
+- Desert Sunset now reads as a sunset: violet sky fading through plum and rose to an orange horizon glow, with plum panels and a sunset-orange accent. Desert only, CSS only (Claude, on `claude/focused-bardeen-ikb2lu`, pending review).
 
 ## Next
 
-1. Claude reviews the current theme follow-up before Renee tests it.
-2. Renee tests the reviewed `cloud-sync-preview` deployment.
+1. Codex reviews the Desert Sunset commit on `claude/focused-bardeen-ikb2lu`, merges it into `cloud-sync-preview`, and takes the baton back.
+2. Renee tests the `cloud-sync-preview` deployment: every desktop theme, and the Dark, Amber, and Blue phone themes.
 3. Decide whether to make Claude’s optional header-review refinements:
    - make Appearance the same size as the other desktop menu items;
    - clarify that the first count is for the current tab;
    - make keyboard Tab order match the visual menu order without CSS `order`.
-4. Continue coat-description review and data validation as Renee confirms coats.
+4. Renee decides whether to hide the Red/White/Black breeding-point boxes from the normal editor and rename the “Coat & Breeding Color Data” section, keeping the values in the coat catalog for a possible breeding planner later.
+5. Continue coat-description review and data validation as Renee confirms coats.
 
 ## Do not touch
 
