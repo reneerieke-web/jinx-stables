@@ -9,6 +9,7 @@ Updated: September 26, 2026 (ET)
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `791d689` — Desert Sunset recolor, built on `15405c3`
 - **Review status:** Codex reviewed `791d689`: CSS and `STATUS.md` only, with no JavaScript, sync, authentication, or data changes
+- **Pending on `claude/focused-bardeen-ikb2lu`:** tier XSS fix by Claude, built on `e564461`, waiting for Codex review and merge. Codex is out until about 6:50 PM ET; Claude did not write to `cloud-sync-preview`.
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -34,11 +35,16 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Moonlit, Autumn, Snowy, Desert, and Black Spirit use matching panel, border, accent, and muted-text palettes; Classic and Forest retain the original green (`c31c786`).
 - The desktop header and phone editor Save bar now follow their active theme, while Dark, Amber, and Blue phone themes fully control their own panel colors (`15405c3`, authored by Claude, reviewed by Codex).
 - Desert Sunset now reads as a sunset: violet sky fading through plum and rose to an orange horizon glow, with plum panels and a sunset-orange accent (`791d689`, authored by Claude, reviewed by Codex).
+- Security checkpoint status: Mini declined the targeted audit and is no longer responsible for it. Codex completed a read-only code/configuration review of `e564461` (recorded in Codex commit `7540b39`, not yet pushed when this was written): ownership/RLS policies are structured correctly, anonymous users have no table access, signed-in users have no hard-delete grant, and no service-role key is in the page. Claude independently confirmed those same four points.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Next
 
-1. Mini security checkpoint — plan approved, waiting on the green light.
+1. Pre-production security blockers (all required before `main`):
+   - **Tier XSS (found by Claude, fix pending review):** a crafted JSON backup or transfer file could run script because the card tier badge was not escaped and restore/transfer accepted any tier value. Fix: `esc()` on the tier badge in `cardBody`, and `mk()` only accepts tiers listed in `TIER_LABEL` (anything else becomes `8`). Tested on `e564461` in a signed-out local copy: the payload fired before the fix and fires zero times after it, on desktop and phone, including a bad tier already saved on the device. A real full-stable backup restores with every tier unchanged.
+   - **SheetJS 0.18.5 (found by Codex):** upgrade the embedded spreadsheet reader to SheetJS CE 0.20.2 or later and add spreadsheet file-size and row limits. Needs review by whoever did not write it.
+   - **Cross-account isolation test:** Claude proposes testing in the database with two fake users and fake stables inside a rolled-back transaction, never touching Renee’s stable. Waiting on Renee’s OK.
+   - Non-blocking: Supabase leaked-password protection is off, which does not matter while sign-in is Discord only.
 2. Merge `cloud-sync-preview` into `main` — Renee’s approval required.
 3. Connect `jinxsstables.com` (double **s**) only after the security checkpoint and production merge.
 
@@ -58,5 +64,6 @@ When `jinxsstables.com` is connected, update these three items together:
 - Do not modify sync, authentication, or stored-data behavior during visual/layout work.
 - Do not change Supabase without Renee’s explicit approval and the baton.
 - Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
-- Do not merge to `main` or connect `jinxsstables.com` until Mini’s security results are complete and Renee gives approval.
+- Do not merge to `main` or connect `jinxsstables.com` until every security blocker above is fixed and reviewed, the isolation test passes, and Renee gives approval.
+- Do not run live attack tests against Renee’s real stable.
 - Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.

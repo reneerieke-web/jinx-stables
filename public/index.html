@@ -1351,7 +1351,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       id: o.id || uid(),
       ownerId: o.ownerId || LOCAL_OWNER_ID,
       name: o.name || "",
-      tier: o.tier || "8",
+      tier: Object.prototype.hasOwnProperty.call(TIER_LABEL, o.tier) ? o.tier : "8",
       sex: o.sex || "Female",
       level: o.level || 1,
       coat: o.coat || "",
@@ -2062,7 +2062,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   function cardBody(h){
     var courser = isCourser(h);
     var tierClass = {"8":"tier8","7":"tier7","6":"tier6","imp":"tier-imp","dream":"tier-dream","myth":"tier-myth"}[h.tier] || "tier6";
-    var tierBadge = '<span class="badge '+tierClass+'">'+(TIER_LABEL[h.tier]||h.tier)+'</span>';
+    var tierBadge = '<span class="badge '+tierClass+'">'+esc(TIER_LABEL[h.tier]||h.tier)+'</span>';
     var topRow = tierBadge;
     if(isSpecialSubtypeTier(h.tier) && h.subtype){
       topRow += '<span class="badge subtype">'+esc(SUBTYPE_LABEL[h.subtype]||h.subtype)+'</span>';
