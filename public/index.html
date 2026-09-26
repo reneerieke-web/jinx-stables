@@ -1035,6 +1035,48 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   });
   function findCatalogEntry(id){ return COAT_CATALOG.find(function(c){ return c.id===id; }) || null; }
 
+  var COAT_GROUP_OPTIONS = [
+    ["Red","Red group"],
+    ["Black/White","Black/White group"],
+    ["Black","Black group"],
+    ["Green","Green group"],
+    ["Blue","Blue group"],
+    ["Blonde","Blonde group"],
+    ["Brown","Brown group"],
+    ["Undetermined","Undetermined"]
+  ];
+  var COAT_GROUP_SWATCH = {
+    "Red":"#A95143", "Black/White":"#777873", "Black":"#292929", "Green":"#687568",
+    "Blue":"#687C8D", "Blonde":"#D8BE7D", "Brown":"#795844", "Undetermined":"#8C857B"
+  };
+  function normalizeCoatGroup(value){
+    var raw = String(value || "").replace(/\s+group$/i, "").replace(/\s*\/\s*/g, "/").trim();
+    return COAT_GROUP_OPTIONS.some(function(pair){ return pair[0] === raw; }) ? raw : "";
+  }
+  function inferCoatGroup(description){
+    var text = String(description || "").toLowerCase();
+    if(!text) return "Undetermined";
+    if((text.indexOf("black") !== -1 && text.indexOf("white") !== -1) || text.indexOf("black-and-white") !== -1) return "Black/White";
+    if(/green/.test(text)) return "Green";
+    if(/red|chestnut|rose|orange|pink|maroon/.test(text)) return "Red";
+    if(/brown|bay|taupe|toffee|chocolate/.test(text)) return "Brown";
+    if(/blonde|flaxen|gold|cream|palomino|buckskin|tan/.test(text)) return "Blonde";
+    if(/blue|silver|gray|grey/.test(text)) return "Blue";
+    if(/\bblack\b|charcoal/.test(text)) return "Black";
+    if(/white|pale/.test(text)) return "Blonde";
+    return "Undetermined";
+  }
+  function coatGroupFor(h){
+    return normalizeCoatGroup(h && h.coatGroup) || inferCoatGroup(h && h.coat);
+  }
+  function coatGroupLabel(group){
+    var value = normalizeCoatGroup(group) || "Undetermined";
+    return value === "Undetermined" ? value : value + " group";
+  }
+  function coatGroupSwatch(group, fallback){
+    return COAT_GROUP_SWATCH[normalizeCoatGroup(group)] || fallback || COAT_GROUP_SWATCH.Undetermined;
+  }
+
   // Card and status-pill color coding, per Ms. Renee's scheme:
   // Do Not Sell = purple, Breeding Market = blue, Exchange (earmarked, not yet
   // consumed) = orange, terminal outcomes (Sold/Exchanged/Imperial) = red.
@@ -1252,6 +1294,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       sex: o.sex || "Female",
       level: o.level || 1,
       coat: o.coat || "",
+      coatGroup: normalizeCoatGroup(o.coatGroup) || inferCoatGroup(o.coat),
       coatColor: o.coatColor || "#8C857B",
       coatIdCurrent: o.coatIdCurrent || "",
       coatIdLegacy: o.coatIdLegacy || "",
@@ -2024,8 +2067,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     return '<div class="top-row">'+topRow+'</div>'+
       '<div class="name-row"><h3>'+esc(h.name)+'</h3><span class="level mono">Lv'+h.level+'</span></div>'+
       mobileSummary+
-      '<div class="swatch" style="background:'+esc(h.coatColor)+'"></div>'+
-      '<div class="coat-desc">'+esc(h.coat)+'</div>'+
+      '<div class="swatch" style="background:'+esc(coatGroupSwatch(coatGroupFor(h), h.coatColor))+'"></div>'+
+      '<div class="coat-desc">'+esc(coatGroupLabel(coatGroupFor(h)))+'</div>'+
       bottom;
   }
 
@@ -2785,10 +2828,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           '<button type="button" id="breedPlus" aria-label="Increase breedings">+</button>' +
         '</div></div>' +
       '</div>' +
-      '<div class="two-col">' +
-        '<div class="field"><label for="fCoat">Coat description <span class="hint">(what you see)</span></label><input id="fCoat" type="text" placeholder="e.g. Dusty gray-rose, dark mane"></div>' +
-        '<div class="field"><label for="fCoatColor">Swatch color</label><input id="fCoatColor" type="color" style="height:38px; padding:4px;"></div>' +
-      '</div>' +
+      '<div class="field"><label for="fCoatGroup">Color group <span class="hint">broad visual family</span></label><select id="fCoatGroup"></select></div>' +
       '<div class="two-col">' +
         '<div class="field"><label for="fRider">Current rider/character</label><input id="fRider" type="text" placeholder="Who is riding this horse"></div>' +
         '<div class="field"><label for="fLocation">Current stable/location</label><input id="fLocation" type="text" placeholder="Where it is kept"></div>' +
@@ -2815,10 +2855,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       '<div class="skills-note">Choose the closest visual description. Its coat code and any known breeding-color points fill automatically. Choose Undetermined or See coat note when there is no confident match; both keep the code and points blank.</div>' +
       '<div class="field"><label for="fReferenceCoat">Coat appearance <span class="hint">all reference coats, grouped by coat-code tier</span></label><select id="fReferenceCoat"></select></div>' +
       '<div id="referenceCoatInfo" class="modal-note" hidden></div>' +
-      '<div class="two-col">' +
-        '<div class="field"><label for="fCoatIdCurrent">Current coat identifier <span class="hint">if confirmed</span></label><input id="fCoatIdCurrent" type="text" placeholder="e.g. 8-3"></div>' +
-        '<div class="field"><label for="fCoatIdLegacy">Legacy/community identifier <span class="hint">if applicable</span></label><input id="fCoatIdLegacy" type="text" placeholder="e.g. T8C"></div>' +
-      '</div>' +
+      '<div class="field"><label for="fCoatIdCurrent">Coat code <span class="hint">fills automatically from the appearance</span></label><input id="fCoatIdCurrent" type="text" placeholder="Select an appearance above" readonly><input id="fCoatIdLegacy" type="hidden"></div>' +
       '<div class="field"><label>Breeding color points <span class="hint">Red / White / Black</span></label>' +
         '<div class="two-col" style="grid-template-columns:1fr 1fr 1fr;">' +
           '<input id="fRedValue" type="number" min="0" placeholder="R">' +
@@ -3010,12 +3047,12 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     var box = el("referenceCoatInfo");
     if(draft.referenceCoatId === "__undetermined__"){
       box.hidden = false;
-      box.textContent = "No coat code selected. Add your own visual description above if useful.";
+      box.textContent = "No coat code selected. Choose the broad color group above and add any extra detail in Notes if useful.";
       return;
     }
     if(draft.referenceCoatId === "__see_note__"){
       box.hidden = false;
-      box.textContent = "No coat code selected. Describe the coat in the Coat description field above or in Notes below.";
+      box.textContent = "No coat code selected. Choose the broad color group above and describe the coat in Notes below.";
       return;
     }
     var c = findCatalogEntry(draft.referenceCoatId);
@@ -3140,7 +3177,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   function peekEditorFormSnapshot(){
     return JSON.stringify({
       name: el("fName").value.trim(), tier: el("fTier").value, sex: el("fSex").value,
-      level: el("fLevel").value, coat: el("fCoat").value.trim(), coatColor: el("fCoatColor").value,
+      level: el("fLevel").value, coatGroup: el("fCoatGroup").value,
       rider: el("fRider").value.trim(), location: el("fLocation").value.trim(),
       coatIdCurrent: el("fCoatIdCurrent").value.trim(), coatIdLegacy: el("fCoatIdLegacy").value.trim(),
       redValue: el("fRedValue").value, whiteValue: el("fWhiteValue").value, blackValue: el("fBlackValue").value,
@@ -3251,8 +3288,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     fillSelectPairs(el("fTier"), TIER_OPTIONS); el("fTier").value = draft.tier;
     el("fSex").value = draft.sex;
     el("fLevel").value = draft.level;
-    el("fCoat").value = draft.coat;
-    el("fCoatColor").value = draft.coatColor;
+    fillSelectPairs(el("fCoatGroup"), COAT_GROUP_OPTIONS);
+    el("fCoatGroup").value = coatGroupFor(draft);
     el("fRider").value = draft.rider;
     el("fLocation").value = draft.location;
     el("fCoatIdCurrent").value = draft.coatIdCurrent;
@@ -3414,8 +3451,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
     draft.sex = el("fSex").value;
     draft.level = Math.min(maxLevelForTier(el("fTier").value), Math.max(1, parseInt(el("fLevel").value,10) || 1));
-    draft.coat = el("fCoat").value.trim();
-    draft.coatColor = el("fCoatColor").value;
+    draft.coatGroup = normalizeCoatGroup(el("fCoatGroup").value) || "Undetermined";
+    draft.coatColor = coatGroupSwatch(draft.coatGroup, draft.coatColor);
     draft.rider = el("fRider").value.trim();
     draft.location = el("fLocation").value.trim();
     var codeFreeCoat = draft.referenceCoatId === "__undetermined__" || draft.referenceCoatId === "__see_note__";
@@ -3665,9 +3702,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       '</div>' +
       '<div class="two-col">' +
         '<div class="field"><label for="exLevel">Level</label><input id="exLevel" type="number" min="1" max="30" value="1"></div>' +
-        '<div class="field"><label for="exCoatColor">Swatch color</label><input id="exCoatColor" type="color" value="#8C857B" style="height:38px; padding:4px;"></div>' +
+        '<div class="field"><label for="exCoatGroup">Color group</label><select id="exCoatGroup"></select></div>' +
       '</div>' +
-      '<div class="field"><label for="exCoat">Coat description</label><input id="exCoat" type="text"></div>' +
       '<div class="skills-head"><span>Known skills so far</span></div>' +
       '<div id="exSkillGrid"></div>' +
       '<div id="exchangeWarn" class="project-warn" hidden></div>' +
@@ -3683,6 +3719,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       el("p1NameWrap").hidden = true;
     }
     el("exDate").value = today();
+    fillSelectPairs(el("exCoatGroup"), COAT_GROUP_OPTIONS);
+    el("exCoatGroup").value = "Undetermined";
     renderSkillGrid(el("exSkillGrid"), exchangeSkills, el("exTier").value, function(){ /* just toggling draft */ });
     el("exTier").addEventListener("change", function(){
       renderSkillGrid(el("exSkillGrid"), exchangeSkills, el("exTier").value, function(){});
@@ -3721,8 +3759,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
       var result = mk({
         name: resultName, tier: el("exTier").value, sex: el("exSex").value,
-        level: parseInt(el("exLevel").value,10)||1, coat: el("exCoat").value.trim(),
-        coatColor: el("exCoatColor").value, skills: exchangeSkills, status: "Undetermined",
+        level: parseInt(el("exLevel").value,10)||1, coatGroup: el("exCoatGroup").value,
+        coatColor: coatGroupSwatch(el("exCoatGroup").value), skills: exchangeSkills, status: "Undetermined",
         breedings: defaultBreedingsForSex(el("exSex").value),
         acquisition: "Exchanged",
         exchange: { parentIds: [p1id,p2id].filter(Boolean), parentNames: [p1name,p2name].filter(Boolean), date: date }
@@ -3763,7 +3801,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       p2: el("p2Select").value, p2n: el("p2Name") ? el("p2Name").value.trim() : "",
       date: el("exDate").value, name: el("exName").value.trim(),
       tier: el("exTier").value, sex: el("exSex").value, level: el("exLevel").value,
-      coatColor: el("exCoatColor").value, coat: el("exCoat").value.trim(),
+      coatGroup: el("exCoatGroup").value,
       skills: JSON.stringify(exchangeSkills)
     });
   }
@@ -4081,7 +4119,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   // tracker) is what lets future imports match safely by ID instead of
   // falling back to uncertain name matches.
   function buildRosterRows(){
-    var headers = ["Internal ID","Name","Tier","Sex","Level","Subtype (Dream/Mythical only)","Coat description","Current coat identifier",
+    var headers = ["Internal ID","Name","Tier","Sex","Level","Subtype (Dream/Mythical only)","Coat color group","Coat description","Current coat identifier",
       "Legacy/community coat identifier","Red breeding value","White breeding value","Black breeding value",
       "Rider/character","Stable/location","Status","Breedings left","Acquired by","Parent 1 name","Parent 2 name",
       "Skill data reviewed (Dream/Mythical only)","Other/unlisted skill details","Notes"]
@@ -4091,7 +4129,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     horses.forEach(function(h){
       var row = [
         h.id, h.name, h.tier, h.sex, h.level, isSpecialSubtypeTier(h.tier) ? (SUBTYPE_LABEL[h.subtype]||"") : "",
-        h.coat, h.coatIdCurrent, h.coatIdLegacy,
+        coatGroupFor(h), h.coat, h.coatIdCurrent, h.coatIdLegacy,
         h.redValue, h.whiteValue, h.blackValue, h.rider, h.location, h.status, h.breedings,
         h.acquisition, (h.parentNames && h.parentNames[0]) || "", (h.parentNames && h.parentNames[1]) || "",
         isSpecialSubtypeTier(h.tier) ? (h.skillDataReviewed ? "TRUE" : "FALSE") : "",
@@ -4576,6 +4614,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     ["subtype","Subtype (Dream/Mythical only)"],
     ["sex","Sex"],
     ["level","Level"],
+    ["coatGroup","Coat color group"],
     ["coat","Coat description (what you see)"],
     ["coatIdCurrent","Current coat identifier"],
     ["coatIdLegacy","Legacy/community coat identifier"],
@@ -4600,6 +4639,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     subtype: ["subtype","dreamsubtype","mythicalsubtype","horsesubtype","dreamtype","mythicaltype"],
     sex: ["sex","gender"],
     level: ["level","lvl"],
+    coatGroup: ["coatgroup","coatcolorgroup","colorgroup","colourgroup","broadcolor","broadcolour"],
     coat: ["coat","coatdescription","coatdesc","color","colordescription","appearance","visualcoat","coatcolorstyle"],
     coatIdCurrent: ["coatid","currentcoatid","coatcode","currentcoatcode","coatidentifier"],
     coatIdLegacy: ["legacycoatid","legacycode","communityid","legacyidentifier","legacycoatcode"],
@@ -5106,6 +5146,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         parsed: {
           name: rawName, id: rawId || null, tier: tier, sex: sex, level: level, breedings: breedings, status: status,
           originalAction: rawStatus || "",
+          coatGroup: normalizeCoatGroup(cell(row, colFor.coatGroup)),
           coat: cell(row, colFor.coat),
           coatIdCurrent: coatIdCurrent, coatIdLegacy: cell(row, colFor.coatIdLegacy),
           redValue: redValue, whiteValue: whiteValue, blackValue: blackValue,
@@ -5282,6 +5323,12 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       if(p.sex) setIf("sex", p.sex, p.sex);
       if(p.level != null) setIf("level", String(p.level), p.level);
       setIf("coat", p.coat, p.coat);
+      if(p.coatGroup){
+        setIf("coatGroup", p.coatGroup, p.coatGroup);
+      } else if(p.coat && (!normalizeCoatGroup(h.coatGroup) || h.coatGroup === "Undetermined")){
+        var inferredCoatGroup = inferCoatGroup(p.coat);
+        if(h.coatGroup !== inferredCoatGroup){ h.coatGroup = inferredCoatGroup; changed = true; }
+      }
       setIf("coatIdCurrent", p.coatIdCurrent, p.coatIdCurrent);
       setIf("coatIdLegacy", p.coatIdLegacy, p.coatIdLegacy);
       if(p.redValue !== "") setIf("redValue", p.redValue, parseInt(p.redValue,10));
