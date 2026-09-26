@@ -938,42 +938,101 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   // same rule instead of two separate hard-coded numbers.
   function maxLevelForTier(tier){ return 30; }
 
-  // Validated reference coats only. Each entry here has been checked against
-  // two independent sources (BlackD's horse list and GrumpyGreen's BDO horse
-  // breeding guide). Tier 6's "T6A" was left out on purpose: the two sources
-  // disagree on which color it's purebred in, so it isn't unambiguous yet.
-  // NA/EU availability is tracked separately from the coat data itself —
-  // a coat being in this list is not a claim that it's currently obtainable
-  // on NA/EU.
-  var COAT_REFERENCE_SOURCE = "BlackD Horse List (blackd.de/horse-list), cross-checked against GrumpyGreen's BDO Horse Breeding Advanced guide";
-  var COAT_CATALOG = [
-    { id:"ref_t7a", currentCode:"T7A", legacyCode:"T7A", tier:"7", name:"Purebred Red",
-      red:7, white:0, black:0,
-      description:"All 7 breeding-color points in Red; none in White or Black.",
-      verificationStatus:"Confirmed", source: COAT_REFERENCE_SOURCE,
-      naEuStatus:"Unknown", naEuSource:"", naEuCheckedDate:"" },
-    { id:"ref_t7b", currentCode:"T7B", legacyCode:"T7B", tier:"7", name:"Purebred White",
-      red:0, white:7, black:0,
-      description:"All 7 breeding-color points in White; none in Red or Black.",
-      verificationStatus:"Confirmed", source: COAT_REFERENCE_SOURCE,
-      naEuStatus:"Unknown", naEuSource:"", naEuCheckedDate:"" },
-    { id:"ref_t7c", currentCode:"T7C", legacyCode:"T7C", tier:"7", name:"Purebred Black",
-      red:0, white:0, black:7,
-      description:"All 7 breeding-color points in Black; none in Red or White.",
-      verificationStatus:"Confirmed", source: COAT_REFERENCE_SOURCE,
-      naEuStatus:"Unknown", naEuSource:"", naEuCheckedDate:"" },
-    { id:"ref_t8c", currentCode:"T8C", legacyCode:"T8C", tier:"8", name:"Purebred Black",
-      red:0, white:0, black:8,
-      description:"All 8 breeding-color points in Black; none in Red or White.",
-      verificationStatus:"Confirmed", source: COAT_REFERENCE_SOURCE,
-      naEuStatus:"Unavailable", naEuSource:"BlackD lists this coat as \"not available in NA/EU\".", naEuCheckedDate:"Not dated by source" },
-    { id:"ref_t8e", currentCode:"T8E", legacyCode:"T8E", tier:"8", name:"Purebred White",
-      red:0, white:8, black:0,
-      description:"All 8 breeding-color points in White; none in Red or Black.",
-      verificationStatus:"Confirmed", source: COAT_REFERENCE_SOURCE,
-      naEuStatus:"Unavailable", naEuSource:"BlackD lists this coat as \"not available in NA/EU\".", naEuCheckedDate:"Not dated by source" }
+  // Complete appearance catalog from the coat-review workbook. The visual
+  // descriptions are deliberately available even when their points or source
+  // still need verification: the user can select the closest look, while the
+  // identification status keeps uncertainty explicit. Reference tier is the
+  // coat code's tier, not necessarily the horse's current in-game tier.
+  var COAT_CATALOG_ROWS = [
+    ["1A","1",1,0,0,"Light chestnut body, dark gray mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["1B","1",1,1,1,"Pale gray body, gray mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["2A","2",2,1,1,"Chestnut body, flaxen/blonde mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["2B","2",2,0,1,"Red-chestnut body, gray mane, dark legs","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["2C","2",1,0,2,"Dark bay front, chestnut body, black mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["2D","2",2,1,0,"White head and mane, chestnut body","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3A","3",0,2,2,"Black-and-white pinto, white face","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3B","3",0,2,2,"Black-and-white pinto, dark head","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3C","3",1,2,1,"Light gray, gold tail","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3D","3",1,2,2,"Blue-gray, gray mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3E","3",2,1,1,"Gold/buckskin, gray mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["3F","3",3,0,1,"Red-brown, dark mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4A","4",0,3,2,"Black head and front, cream body","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4B","4",4,0,0,"Solid chestnut/red","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4C","4",2,0,3,"Dark bay with brown patches, feathered","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4D","4",2,2,2,"Cream body, gold mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4E","4",1,2,2,"Dark green-gray, pale tail","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4F","4",2,1,2,"Gray-blue, dark mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4G","4",1,2,1,"Light gray/white, gold tail","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4H","4",0,4,1,"Pale dappled gray","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4I","4",0,0,4,"Dark gray/black","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4J","4",1,1,3,"Blue-gray","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4K","4",3,1,1,"Rose roan, gold mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4L","4",1,2,2,"Gray, white mane, white feathered legs","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4M","4",1,2,1,"Tan with white patches, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4N","4",2,2,0,"Rose-red and white pinto, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4O","4",0,2,2,"Black-and-white pinto, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4P","4",3,1,1,"Mauve/rose-brown, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["4Q","4",2,2,2,"Blue-gray with dark spots, orange mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)","Possible match for the blanket/polka-dot horse."],
+    ["5A","5",4,1,0,"Maroon/red-brown, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5B","5",2,2,2,"Blue-gray and white patches, red mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5C","5",4,1,1,"Red, gold mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5D","5",3,0,2,"Dark red-brown","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5E","5",0,3,3,"Black-and-white pinto, black legs","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5F","5",2,1,2,"Plum/rose, feathered","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5G","5",2,2,1,"Gold/tan, dark legs","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5H","5",1,1,4,"Dark blue-gray, orange mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5I","5",2,2,2,"Dark gray-green","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5J","5",0,0,5,"Dark gray/black","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)","Sources disagree: this table says 0/0/5 black, GrumpyG advanced guide says 0/5/0. Thumbnail looks black, and Sparky/Bugaboo (T5J) are black, so black is likely right."],
+    ["5K","5",0,5,0,"White/cream, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5L","5",0,0,5,"Dark gray/black","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5M","5",0,2,4,"Dark gray, white mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["5N","5",4,0,2,"Red-chestnut, dark gray mane","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)","CreamyTruffles (palomino) has the same 121% x4 at Lv1, but 5N thumbnail looks red. HP differs too (2,130 vs 1,637). Needs checking."],
+    ["5O","5",2,2,2,"Pale tan-and-white pinto, red mane and tail","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["6A","6",null,null,null,"Black","Low (tiny thumbnail)","Not found yet",""],
+    ["6B","6",null,null,null,"Palomino/cream, flaxen mane","Low (tiny thumbnail)","Not found yet",""],
+    ["6C","6",3,1,3,"Chestnut-and-white spotted paint","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["6D","6",null,null,null,"Dark gray with white speckles","Low (tiny thumbnail)","Not found yet",""],
+    ["6E","6",null,null,null,"Pale blue-gray, white mane","Low (tiny thumbnail)","Not found yet",""],
+    ["6F","6",0,2,5,"Black-blue, white mane and tail","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["6G","6",null,null,null,"Chestnut-and-white paint","Low (tiny thumbnail)","Not found yet",""],
+    ["6H","6",null,null,null,"Dark bay with gold patches","Low (tiny thumbnail)","Not found yet",""],
+    ["6I","6",null,null,null,"Red front fading to black body","Low (tiny thumbnail)","Not found yet",""],
+    ["6J","6",null,null,null,"Dark brown-and-white pinto","Low (tiny thumbnail)","Not found yet",""],
+    ["6K","6",null,null,null,"Orange-red, gold mane","Low (tiny thumbnail)","Not found yet",""],
+    ["6L","6",null,null,null,"Black-and-white spotted (leopard)","Low (tiny thumbnail)","Not found yet","Possible match for the blanket/polka-dot horse."],
+    ["6M","6",4,0,3,"Gold-tan with white patches","Low (tiny thumbnail)","GrumpyG 2019 table (unverified)",""],
+    ["6N","6",null,null,null,"White with chestnut spots, white mane","Low (tiny thumbnail)","Not found yet",""],
+    ["6O","6",null,null,null,"White with black spots (leopard)","Low (tiny thumbnail)","Not found yet","Possible match for the blanket/polka-dot horse."],
+    ["6P","6",null,null,null,"Pink, black mane and tail","Low (tiny thumbnail)","Not found yet",""],
+    ["6Q","6",null,null,null,"Cream/white, black tail","Low (tiny thumbnail)","Not found yet",""],
+    ["6R","6",null,null,null,"Blue-gray, white mane, black tail","Low (tiny thumbnail)","Not found yet",""],
+    ["6S","6",null,null,null,"Pale blue-white, gold mane and tail","Low (tiny thumbnail)","Not found yet",""],
+    ["6T","6",null,null,null,"Rose-tan, black mane and tail","Low (tiny thumbnail)","Not found yet",""],
+    ["6U","6",null,null,null,"Pink-white roan, dark legs, feathered","Low (tiny thumbnail)","Not found yet",""],
+    ["7A","7",7,0,0,"Solid chestnut red","Medium","Not found yet","Purebred. Already confirmed in the app."],
+    ["7B","7",0,7,0,"White","Medium","Not found yet","Purebred. Already confirmed in the app."],
+    ["7C","7",0,0,7,"Black, feathered","Medium","Not found yet","Purebred. Already confirmed in the app."],
+    ["7D","7",null,null,null,"White body, black mane and tail","Low (tiny thumbnail)","Not found yet",""],
+    ["7E","7",null,null,null,"Black-and-white pinto","Low (tiny thumbnail)","Not found yet",""],
+    ["7G","7",null,null,null,"Rose-cream, dark mane","Low (tiny thumbnail)","Not found yet",""],
+    ["7H","7",null,null,null,"Tan/buckskin, dark mane","Low (tiny thumbnail)","Not found yet",""],
+    ["7I","7",null,null,null,"White, dark tail","Low (tiny thumbnail)","Not found yet",""],
+    ["7J","7",null,null,null,"Pink roan, dark mane","Low (tiny thumbnail)","Not found yet",""],
+    ["8A","8",null,null,null,"White, dark tail","Low (tiny thumbnail)","GrumpyG T8 chart, Jan 2022 (unverified)",""],
+    ["8B","8",null,null,null,"Buckskin/cream, black mane, dark legs","Low (tiny thumbnail)","GrumpyG T8 chart, Jan 2022 (unverified)",""],
+    ["8C","8",0,0,8,"Silver/blue-gray, dark mane","Medium","GrumpyG T8 chart, Jan 2022 (unverified)","Purebred. Already confirmed in the app."],
+    ["8D","8",null,null,null,"Rose-tan, blonde mane","Low (tiny thumbnail)","GrumpyG T8 chart, Jan 2022 (unverified)",""],
+    ["8E","8",0,8,0,"White, pale mane","Medium","GrumpyG T8 chart, Jan 2022 (unverified)","Purebred. Already confirmed in the app."]
   ];
-  function catalogForTier(tier){ return COAT_CATALOG.filter(function(c){ return c.tier===tier; }); }
+  var COAT_CATALOG = COAT_CATALOG_ROWS.map(function(row){
+    var code = row[0], notes = row[8] || "";
+    return {
+      id:"ref_t"+code.toLowerCase(), currentCode:"T"+code, legacyCode:"T"+code,
+      tier:row[1], red:row[2], white:row[3], black:row[4],
+      name:row[5], description:row[5], draftConfidence:row[6], source:row[7], notes:notes,
+      verificationStatus:notes.indexOf("Already confirmed in the app") !== -1 ? "Confirmed" : "Estimated"
+    };
+  });
   function findCatalogEntry(id){ return COAT_CATALOG.find(function(c){ return c.id===id; }) || null; }
 
   // Card and status-pill color coding, per Ms. Renee's scheme:
@@ -2753,8 +2812,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     '</fieldset>' +
 
     '<fieldset class="section" id="coatBreedingSection"><legend>Coat &amp; breeding color data</legend>' +
-      '<div class="skills-note">Your visual description above is never replaced by this. Leave a field blank rather than guess, and mark the status honestly, most horses should start at Unknown.</div>' +
-      '<div class="field"><label for="fReferenceCoat">Reference coat <span class="hint">validated purebred catalog only, filtered to this horse\'s tier</span></label><select id="fReferenceCoat"></select></div>' +
+      '<div class="skills-note">Choose the closest visual description. Its coat code and any known breeding-color points fill automatically. Choose Undetermined or See coat note when there is no confident match; both keep the code and points blank.</div>' +
+      '<div class="field"><label for="fReferenceCoat">Coat appearance <span class="hint">all reference coats, grouped by coat-code tier</span></label><select id="fReferenceCoat"></select></div>' +
       '<div id="referenceCoatInfo" class="modal-note" hidden></div>' +
       '<div class="two-col">' +
         '<div class="field"><label for="fCoatIdCurrent">Current coat identifier <span class="hint">if confirmed</span></label><input id="fCoatIdCurrent" type="text" placeholder="e.g. 8-3"></div>' +
@@ -2921,56 +2980,75 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
   function refreshReferenceCoatOptions(){
     var sel = el("fReferenceCoat");
-    var tierMatches = catalogForTier(draft.tier);
     var matchedCatalog = findCatalogEntry(draft.referenceCoatId);
-    var matchedInTier = matchedCatalog && matchedCatalog.tier === draft.tier;
-    var hasStoredUnmatched = !matchedInTier && draft.coatIdCurrent;
+    var isSpecial = draft.referenceCoatId === "__undetermined__" || draft.referenceCoatId === "__see_note__";
+    var hasStoredUnmatched = !matchedCatalog && !isSpecial && draft.coatIdCurrent;
+    if(!matchedCatalog && !hasStoredUnmatched && !isSpecial){
+      draft.referenceCoatId = "__undetermined__";
+      isSpecial = true;
+    }
 
-    var html = '<option value="">Unknown / not yet identified</option>';
-    tierMatches.forEach(function(c){
-      html += '<option value="'+esc(c.id)+'">'+esc(c.currentCode)+' — '+esc(c.name)+' (R'+c.red+'/W'+c.white+'/B'+c.black+')</option>';
+    var html = '<option value="__undetermined__">Undetermined — leave code blank</option>' +
+      '<option value="__see_note__">See coat note — leave code blank</option>';
+    ["1","2","3","4","5","6","7","8"].forEach(function(referenceTier){
+      html += '<optgroup label="Reference tier '+referenceTier+'">';
+      COAT_CATALOG.filter(function(c){ return c.tier === referenceTier; }).forEach(function(c){
+        html += '<option value="'+esc(c.id)+'">'+esc(c.name)+' — '+esc(c.currentCode)+'</option>';
+      });
+      html += '</optgroup>';
     });
     if(hasStoredUnmatched){
       html += '<option value="__stored__">Stored code: '+esc(draft.coatIdCurrent)+' — Needs Validation</option>';
     }
     sel.innerHTML = html;
-    sel.value = matchedInTier ? draft.referenceCoatId : (hasStoredUnmatched ? "__stored__" : "");
+    sel.value = matchedCatalog ? draft.referenceCoatId : (isSpecial ? draft.referenceCoatId : (hasStoredUnmatched ? "__stored__" : "__undetermined__"));
     renderReferenceCoatInfo();
   }
 
   function renderReferenceCoatInfo(){
     var box = el("referenceCoatInfo");
+    if(draft.referenceCoatId === "__undetermined__"){
+      box.hidden = false;
+      box.textContent = "No coat code selected. Add your own visual description above if useful.";
+      return;
+    }
+    if(draft.referenceCoatId === "__see_note__"){
+      box.hidden = false;
+      box.textContent = "No coat code selected. Describe the coat in the Coat description field above or in Notes below.";
+      return;
+    }
     var c = findCatalogEntry(draft.referenceCoatId);
-    if(!c || c.tier !== draft.tier){ box.hidden = true; return; }
+    if(!c){ box.hidden = true; return; }
     box.hidden = false;
     box.innerHTML =
-      esc(c.description) + '<br>' +
-      'Coat data verification: <b>' + esc(c.verificationStatus) + '</b> — ' + esc(c.source) + '<br>' +
-      'NA/EU availability (separate from the coat data above): <b>' + esc(c.naEuStatus) + '</b>' +
-      (c.naEuSource ? ' — ' + esc(c.naEuSource) : '') +
-      (c.naEuCheckedDate ? ' (' + esc(c.naEuCheckedDate) + ')' : '');
+      '<b>'+esc(c.currentCode)+'</b> — '+esc(c.description)+'<br>' +
+      'Catalog status: <b>' + esc(c.verificationStatus) + '</b>' +
+      (c.draftConfidence ? ' ('+esc(c.draftConfidence)+')' : '') + '<br>' +
+      'Source: '+esc(c.source || "Not found yet") +
+      (c.notes ? '<br>'+esc(c.notes) : '');
   }
 
   function onReferenceCoatChange(){
     var val = el("fReferenceCoat").value;
     if(val === "__stored__"){
       // leave whatever is already in the manual fields alone
-    } else if(val === ""){
-      draft.referenceCoatId = "";
+    } else if(val === "__undetermined__" || val === "__see_note__"){
+      draft.referenceCoatId = val;
       el("fCoatIdCurrent").value = "";
       el("fCoatIdLegacy").value = "";
       el("fRedValue").value = "";
       el("fWhiteValue").value = "";
       el("fBlackValue").value = "";
+      el("fCoatStatus").value = "Unknown";
     } else {
       var c = findCatalogEntry(val);
       if(c){
         draft.referenceCoatId = c.id;
         el("fCoatIdCurrent").value = c.currentCode;
         el("fCoatIdLegacy").value = c.legacyCode;
-        el("fRedValue").value = c.red;
-        el("fWhiteValue").value = c.white;
-        el("fBlackValue").value = c.black;
+        el("fRedValue").value = c.red == null ? "" : c.red;
+        el("fWhiteValue").value = c.white == null ? "" : c.white;
+        el("fBlackValue").value = c.black == null ? "" : c.black;
         if(el("fCoatStatus").value === "Unknown"){ el("fCoatStatus").value = "Estimated"; }
       }
     }
@@ -3339,11 +3417,12 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     draft.coatColor = el("fCoatColor").value;
     draft.rider = el("fRider").value.trim();
     draft.location = el("fLocation").value.trim();
-    draft.coatIdCurrent = el("fCoatIdCurrent").value.trim();
-    draft.coatIdLegacy = el("fCoatIdLegacy").value.trim();
-    draft.redValue = el("fRedValue").value === "" ? "" : parseInt(el("fRedValue").value,10);
-    draft.whiteValue = el("fWhiteValue").value === "" ? "" : parseInt(el("fWhiteValue").value,10);
-    draft.blackValue = el("fBlackValue").value === "" ? "" : parseInt(el("fBlackValue").value,10);
+    var codeFreeCoat = draft.referenceCoatId === "__undetermined__" || draft.referenceCoatId === "__see_note__";
+    draft.coatIdCurrent = codeFreeCoat ? "" : el("fCoatIdCurrent").value.trim();
+    draft.coatIdLegacy = codeFreeCoat ? "" : el("fCoatIdLegacy").value.trim();
+    draft.redValue = codeFreeCoat || el("fRedValue").value === "" ? "" : parseInt(el("fRedValue").value,10);
+    draft.whiteValue = codeFreeCoat || el("fWhiteValue").value === "" ? "" : parseInt(el("fWhiteValue").value,10);
+    draft.blackValue = codeFreeCoat || el("fBlackValue").value === "" ? "" : parseInt(el("fBlackValue").value,10);
     var oldCoatStatus = draft.coatStatus;
     draft.coatStatus = el("fCoatStatus").value;
     draft.coatSource = el("fCoatSource").value.trim();
