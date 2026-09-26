@@ -277,6 +277,11 @@
   #cloudStatus[data-state="saving"]{color:var(--gold);}
   #cloudStatus[data-state="error"]{color:var(--danger);}
   #cloudStatus[data-state="saved"]{color:var(--keeper);}
+  .mobile-only{display:none;}
+  .mobile-filter-bar,.mobile-card-summary,.mobile-sheet-head{display:none;}
+  .phone-theme-control{display:none;}
+  #filterControls{display:flex; flex-direction:column; gap:12px;}
+  #filterSheetBackdrop[hidden]{display:none;}
   .deleted-list{display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow:auto;}
   .deleted-row{display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:9px; padding:10px; background:var(--ink);}
   .deleted-row .deleted-main{flex:1; min-width:0;}
@@ -377,10 +382,105 @@
   }
 
   @media (max-width:640px){
-    #app{padding-inline:14px;}
+    body{padding-inline:0;}
+    #app{padding:14px 12px calc(88px + env(safe-area-inset-bottom,0px)); gap:12px;}
     .two-col{grid-template-columns:1fr;}
-    #editor{width:100%;}
+    #editor{left:0; right:0; width:100vw; padding:16px 14px calc(88px + env(safe-area-inset-bottom,0px));}
     .wiz-mapping-grid{grid-template-columns:1fr;}
+
+    .mobile-only{display:flex;}
+
+    /* Compact app header. The full desktop action group becomes the
+       hamburger menu without changing any of its existing controls. */
+    header.top{position:relative; align-items:center; flex-wrap:nowrap; padding:4px 0 12px; gap:8px;}
+    header.top .title-block{min-width:0; flex:1; flex-wrap:nowrap; align-items:center; gap:8px;}
+    header.top h1{font-size:21px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    header.top .count{display:none;}
+    #mobileCloudDot{width:10px; height:10px; flex:0 0 10px; border-radius:50%; background:var(--text-faint); box-shadow:0 0 0 3px rgba(110,119,104,.15);}
+    #mobileCloudDot[data-state="saving"]{background:var(--gold); box-shadow:0 0 0 3px rgba(201,154,68,.16);}
+    #mobileCloudDot[data-state="saved"]{background:var(--keeper); box-shadow:0 0 0 3px rgba(127,160,107,.18);}
+    #mobileCloudDot[data-state="error"]{background:var(--danger); box-shadow:0 0 0 3px rgba(194,91,76,.18);}
+    #mobileMenuBtn{width:42px; height:42px; align-items:center; justify-content:center; padding:0; font-size:22px;}
+    header.top .actions{display:none; position:absolute; z-index:18; top:calc(100% + 6px); right:0; width:min(340px,calc(100vw - 24px));
+      max-height:calc(100vh - 100px); overflow-y:auto; padding:12px; border:1px solid var(--border); border-radius:12px;
+      background:var(--panel-raised); box-shadow:var(--shadow); flex-direction:column; align-items:stretch; gap:8px;}
+    header.top .actions.mobile-open{display:flex;}
+    header.top .actions > .btn, header.top .actions .dropdown-wrap, header.top .actions .dropdown-wrap > .btn{width:100%;}
+    header.top .actions .dropdown-wrap{display:flex; flex-direction:column; align-items:stretch;}
+    header.top .actions .dropdown-panel{position:static; width:100%; max-height:none; margin-top:8px; box-shadow:none; background:var(--ink);}
+    header.top .actions #cloudStatus, header.top .actions #addBtn{display:none;}
+
+    #mobileAddFab{display:flex; position:fixed; z-index:17; right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
+      width:58px; height:58px; align-items:center; justify-content:center; border:0; border-radius:50%;
+      background:var(--gold); color:#20180B; box-shadow:0 8px 24px rgba(0,0,0,.45); font-size:32px; line-height:1; font-weight:500;}
+    body.editor-open #mobileAddFab{display:none;}
+
+    /* Static phone backgrounds: simple color tints with no continuously
+       animated layer after the welcome screen. */
+    .phone-theme-control{display:flex; flex-direction:column; gap:6px;}
+    body[data-phone-theme="dark"] #bgLayer{background:#101612;}
+    body[data-phone-theme="amber"] #bgLayer{background:linear-gradient(155deg,#2D2517 0%,#1B1D17 52%,#101511 100%);}
+    body[data-phone-theme="blue"] #bgLayer{background:linear-gradient(155deg,#17253A 0%,#111B2B 52%,#0B111C 100%);}
+
+    /* Capsule navigation stays on one thumb-scrollable row. */
+    .tabs{flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; padding-bottom:8px; gap:6px;}
+    .tabs::-webkit-scrollbar{display:none;}
+    .tab{flex:0 0 auto; padding:8px 11px; white-space:nowrap;}
+
+    /* Search stays visible; all other controls live in a bottom sheet. */
+    .filters{gap:8px;}
+    .filters .row:first-child{display:block;}
+    .filters .row:first-child .flabel{display:none;}
+    .search-wrap{width:100%; max-width:none; min-width:0;}
+    #search{padding:11px 34px 11px 12px;}
+    .mobile-filter-bar{display:flex; align-items:center; gap:8px; min-width:0;}
+    #filtersBtn{flex:0 0 auto;}
+    #activeFilterTags{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; min-width:0;}
+    #activeFilterTags::-webkit-scrollbar{display:none;}
+    .active-filter-tag{flex:0 0 auto; border:1px solid rgba(201,154,68,.5); border-radius:16px; background:var(--gold-soft);
+      color:var(--gold); padding:5px 9px; font-size:11.5px; font-weight:600; white-space:nowrap;}
+    #filterSheetBackdrop{position:fixed; inset:0; z-index:24; background:rgba(0,0,0,.58);}
+    #filterControls{position:fixed; z-index:25; left:0; right:0; bottom:0; max-height:82vh; overflow-y:auto;
+      padding:14px 14px calc(18px + env(safe-area-inset-bottom,0px)); border:1px solid var(--border); border-bottom:0;
+      border-radius:18px 18px 0 0; background:var(--panel); box-shadow:0 -12px 32px rgba(0,0,0,.45);
+      transform:translateY(105%); visibility:hidden; transition:transform .2s ease,visibility 0s linear .2s;}
+    #filterControls.open{transform:translateY(0); visibility:visible; transition:transform .2s ease;}
+    .mobile-sheet-head{display:flex; position:sticky; top:-14px; z-index:1; align-items:center; justify-content:space-between;
+      margin:-14px -14px 4px; padding:14px; background:var(--panel); border-bottom:1px solid var(--border);}
+    .mobile-sheet-head h2{font-size:19px;}
+    #filterControls > .row{align-items:flex-start; gap:8px;}
+    #filterControls .flabel{width:100%;}
+    #tierChips,#subRow{gap:8px;}
+    #sortRow{display:grid; grid-template-columns:auto 1fr; align-items:center;}
+    #sortRow label[for="needsTrainingChk"],#sortRow label[for="showCardExtrasChk"]{grid-column:1 / -1; margin-left:0 !important;}
+
+    /* Phone cards are scan-friendly roster rows. Desktop card markup and
+       appearance remain untouched. */
+    #grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding-bottom:72px;}
+    .card{aspect-ratio:1.14 / 1; min-width:0; padding:10px; gap:6px; border-top-width:2px; border-radius:10px; overflow:hidden;}
+    .card:hover{box-shadow:none;}
+    .card .top-row{min-height:18px; flex-wrap:nowrap;}
+    .card .top-row .badge:not(:first-child){display:none;}
+    .card .name-row{align-items:flex-start; flex-direction:column; gap:1px; min-width:0;}
+    .card .name-row h3{font-size:15px; line-height:1.15; overflow-wrap:anywhere;}
+    .card .name-row .level{font-size:12px;}
+    .card .swatch,.card .coat-desc,.card .bottom-row,.card .sub-line,.card .kv-line{display:none !important;}
+    .mobile-card-summary{display:flex; align-items:flex-end; justify-content:space-between; gap:5px; min-width:0; margin-top:auto;}
+    .mobile-card-summary .status-pill{font-size:10px; padding:2px 7px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .mobile-card-summary .breedings{font-size:11px; white-space:nowrap;}
+
+    /* Every editor section can collapse on a phone. Color data and history
+       start closed; desktop keeps the original continuously-open form. */
+    #editor .ehead{position:sticky; top:-16px; z-index:3; margin:-16px -14px 0; padding:14px; background:var(--panel); border-bottom:1px solid var(--border);}
+    fieldset.section.mobile-collapsible > legend{width:100%; cursor:pointer; padding:2px 4px;}
+    fieldset.section.mobile-collapsible > legend::after{content:"⌃"; float:right; color:var(--text-soft); font-size:14px;}
+    fieldset.section.mobile-collapsible.mobile-collapsed > legend::after{content:"⌄";}
+    fieldset.section.mobile-collapsible.mobile-collapsed > *:not(legend){display:none !important;}
+    #editorSaveBar{position:sticky; z-index:4; bottom:0;
+      margin:0 -14px -16px; padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+      background:rgba(36,43,36,.97); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
+    #editorSaveBar .btn{min-height:44px;}
+    #modalBox{max-height:92vh; padding:18px 14px;}
 
     /* Mobile launch screen: use the real phone viewport, stack the choices,
        and let the chooser scroll if browser chrome reduces usable height. */
@@ -430,7 +530,9 @@
     <div class="title-block">
       <h1 id="appTitle" title="Curious? Click me a few times.">Jinx’s Stables</h1>
       <span class="count" id="countLabel"></span>
+      <span class="mobile-only" id="mobileCloudDot" data-state="idle" role="status" aria-label="Cloud status"></span>
     </div>
+    <button class="btn mobile-only" id="mobileMenuBtn" type="button" aria-expanded="false" aria-label="Open stable menu">☰</button>
     <div class="actions">
       <div class="dropdown-wrap" id="dataMenuWrap">
         <button class="btn" id="dataMenuBtn" type="button" aria-expanded="false">Data &amp; Backups ▾</button>
@@ -466,6 +568,15 @@
             <option value="desert">Desert Sunset</option>
             <option value="blackspirit">Black Spirit</option>
           </select>
+          <div class="phone-theme-control">
+            <label for="phoneThemeSelect">Phone color</label>
+            <select id="phoneThemeSelect">
+              <option value="dark">Dark</option>
+              <option value="amber">Amber</option>
+              <option value="blue">Blue</option>
+            </select>
+            <div class="dropdown-desc">Static colors save battery. Welcome sparkles still appear.</div>
+          </div>
           <label for="darknessRange">Background darkness</label>
           <input id="darknessRange" type="range" min="0" max="90" step="5">
           <div class="modal-note" style="font-size:12px;">Themes are built from plain CSS gradients, so they keep working even with this file opened offline.</div>
@@ -474,10 +585,11 @@
       <span id="cloudStatus" data-state="idle" aria-live="polite"></span>
       <button class="btn small logout-btn" id="signOutBtn" type="button" hidden aria-label="Log out of this stable account">↪ Log out</button>
       <button class="btn" id="exchangeBtn">+ Log exchange</button>
-      <button class="btn" id="addBtn">+ Log a new horse</button>
-      <button class="btn primary" id="quickAddBtn">⚡ Quick Add</button>
+      <button class="btn primary" id="addBtn">+ Add horse</button>
     </div>
   </header>
+
+  <button class="mobile-only" id="mobileAddFab" type="button" aria-label="Add horse">+</button>
 
   <div class="banner" id="sampleBanner" hidden>
     <span>This is sample data so you can see how it works, including one example in every capsule. Edit or delete these, then add your own.</span>
@@ -504,27 +616,38 @@
         <button id="searchClear" type="button" aria-label="Clear search" hidden>&times;</button>
       </div>
     </div>
-    <div class="row" id="tierRow">
-      <span class="flabel">Tier</span>
-      <div id="tierChips" class="row"></div>
+    <div class="mobile-filter-bar">
+      <button class="btn small" id="filtersBtn" type="button" aria-expanded="false">Filters</button>
+      <div id="activeFilterTags" aria-label="Active filters"></div>
     </div>
-    <div class="row" id="subRow"></div>
-    <div class="row" id="sortRow">
-      <label class="flabel" for="sortSelect">Sort by</label>
-      <select id="sortSelect">
-        <option value="name">Name</option>
-        <option value="tier">Tier</option>
-        <option value="level">Level</option>
-        <option value="breedings">Breedings left</option>
-        <option value="courser">Courser progress</option>
-        <option value="status">Status</option>
-      </select>
-      <label class="flabel" for="needsTrainingChk" style="margin-left:14px; width:auto;">
-        <input id="needsTrainingChk" type="checkbox" style="margin-right:4px; vertical-align:middle;">Needs training only
-      </label>
-      <label class="flabel" for="showCardExtrasChk" style="margin-left:14px; width:auto;">
-        <input id="showCardExtrasChk" type="checkbox" style="margin-right:4px; vertical-align:middle;">Show rider / location on cards
-      </label>
+    <div id="filterSheetBackdrop" hidden></div>
+    <div id="filterControls" aria-label="Horse filters">
+      <div class="mobile-sheet-head">
+        <h2>Filters</h2>
+        <button class="btn small" id="filtersCloseBtn" type="button">Done</button>
+      </div>
+      <div class="row" id="tierRow">
+        <span class="flabel">Tier</span>
+        <div id="tierChips" class="row"></div>
+      </div>
+      <div class="row" id="subRow"></div>
+      <div class="row" id="sortRow">
+        <label class="flabel" for="sortSelect">Sort by</label>
+        <select id="sortSelect">
+          <option value="name">Name</option>
+          <option value="tier">Tier</option>
+          <option value="level">Level</option>
+          <option value="breedings">Breedings left</option>
+          <option value="courser">Courser progress</option>
+          <option value="status">Status</option>
+        </select>
+        <label class="flabel" for="needsTrainingChk" style="margin-left:14px; width:auto;">
+          <input id="needsTrainingChk" type="checkbox" style="margin-right:4px; vertical-align:middle;">Needs training only
+        </label>
+        <label class="flabel" for="showCardExtrasChk" style="margin-left:14px; width:auto;">
+          <input id="showCardExtrasChk" type="checkbox" style="margin-right:4px; vertical-align:middle;">Show rider / location on cards
+        </label>
+      </div>
     </div>
   </div>
 
@@ -1229,6 +1352,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         imperial:{silver:900000, seals:12, flowers:3, date:"2026-09-12"},
         history:[{date:"2026-09-12",text:"Imperial delivered for 900,000 silver, 12 Golden Seals, 3 Flowers of Oblivion."}]})
     ];
+    list.forEach(function(h){ Object.defineProperty(h, "sampleOnly", { value:true, enumerable:false }); });
     return list;
   }
 
@@ -1263,9 +1387,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     return cloudUserId ? (SEEDED_KEY + ".cloud." + cloudUserId) : SEEDED_KEY;
   }
   function persistLocalOnly(){
+    if(showingSample) return;
     try{ localStorage.setItem(currentHorseStoreKey(), JSON.stringify(horses)); }catch(e){}
   }
   function persist(){
+    if(showingSample) return;
     persistLocalOnly();
     if(cloudReady){
       captureCloudDirtyFromCurrent();
@@ -1276,6 +1402,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     try{ return localStorage.getItem(currentSeededKey()) === "1"; }catch(e){ return false; }
   }
   function markSeeded(){
+    if(showingSample) return;
     try{ localStorage.setItem(currentSeededKey(),"1"); }catch(e){}
   }
 
@@ -1321,7 +1448,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   }
   // Keep a read-only copy of pre-cloud browser data so first sign-in can
   // offer a safe one-time migration instead of silently overwriting it.
-  var startupLocalHorses = JSON.parse(JSON.stringify(horses || []));
+  var startupLocalHorses = JSON.parse(JSON.stringify((horses || []).filter(function(h){ return !h.sampleOnly; })));
 
   var state = { capsule:"active", tier:"All", sub:"All", search:"", editingId:null, sort:"name", needsTraining:false };
   var SHOW_EXTRAS_KEY = "jinxStables.showCardExtras.v1";
@@ -1330,8 +1457,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
   // ---------- appearance / theme ----------
   var THEME_KEY = "jinxStables.theme.v1";
+  var PHONE_THEME_KEY = "jinxStables.phoneTheme.v1";
   var THEME_VALUES = ["classic","moonlit","forest","autumn","snowy","desert","blackspirit"];
   var themePrefs = { theme: "classic", darkness: 55 };
+  var phoneTheme = "dark";
   try{
     var savedTheme = JSON.parse(localStorage.getItem(THEME_KEY) || "null");
     if(savedTheme && typeof savedTheme === "object"){
@@ -1339,8 +1468,13 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       if(typeof savedTheme.darkness === "number") themePrefs.darkness = Math.max(0, Math.min(90, savedTheme.darkness));
     }
   }catch(e){}
+  try{
+    var savedPhoneTheme = localStorage.getItem(PHONE_THEME_KEY);
+    if(["dark","amber","blue"].indexOf(savedPhoneTheme) !== -1) phoneTheme = savedPhoneTheme;
+  }catch(e){}
   function applyTheme(){
     document.body.setAttribute("data-bgtheme", themePrefs.theme);
+    document.body.setAttribute("data-phone-theme", phoneTheme);
     var overlay = document.getElementById("bgOverlay");
     if(overlay) overlay.style.opacity = String(themePrefs.darkness/100);
   }
@@ -1454,6 +1588,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
     function start(theme){
       stop();
+      if(theme !== "welcome" && window.matchMedia && window.matchMedia("(max-width: 640px)").matches){
+        theme = "classic";
+      }
       var cfg = PARTICLE_CONFIGS[theme];
       if(!cfg){ ctx.clearRect(0,0,w,h); return; }
       resize();
@@ -1496,6 +1633,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var sortSelect = document.getElementById("sortSelect");
   var needsTrainingChk = document.getElementById("needsTrainingChk");
   var showCardExtrasChk = document.getElementById("showCardExtrasChk");
+  var filtersBtn = document.getElementById("filtersBtn");
+  var filtersCloseBtn = document.getElementById("filtersCloseBtn");
+  var filterControls = document.getElementById("filterControls");
+  var filterSheetBackdrop = document.getElementById("filterSheetBackdrop");
+  var activeFilterTags = document.getElementById("activeFilterTags");
   var sampleBanner = document.getElementById("sampleBanner");
   var migratedBanner = document.getElementById("migratedBanner");
   var horseNamesList = document.getElementById("horseNamesList");
@@ -1584,10 +1726,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   document.getElementById("launchSample").addEventListener("click", function(){
     // Samples are a local-only demo and must never enter a signed-in cloud stable.
     if(cloudReady) return;
-    horses = sampleHorses();
-    persistLocalOnly();
-    markSeeded();
     showingSample = true;
+    horses = sampleHorses();
     sampleBanner.hidden = false;
     setLaunchOpen(false);
     revealStorageWarnIfNeeded();
@@ -1615,10 +1755,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   });
   document.getElementById("clearSample").addEventListener("click", function(){
     horses = [];
-    persist();
-    markSeeded();
     showingSample = false;
     sampleBanner.hidden = true;
+    setLaunchOpen(true);
     renderAll();
   });
 
@@ -1681,6 +1820,39 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         subRow.appendChild(b);
       });
     }
+    renderActiveFilterTags();
+  }
+
+  function renderActiveFilterTags(){
+    var filters = [];
+    if(state.tier !== "All") filters.push({ key:"tier", label:TIER_LABEL[state.tier] || state.tier });
+    if(state.sub !== "All") filters.push({ key:"sub", label:statusLabel(state.sub) });
+    if(state.sort !== "name") filters.push({ key:"sort", label:"Sort: " + sortSelect.options[sortSelect.selectedIndex].text });
+    if(state.capsule === "active" && state.needsTraining) filters.push({ key:"training", label:"Needs training" });
+    if(showCardExtras) filters.push({ key:"extras", label:"Rider / location" });
+    activeFilterTags.innerHTML = "";
+    filters.forEach(function(item){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "active-filter-tag";
+      b.textContent = item.label + " ×";
+      b.setAttribute("aria-label", "Remove " + item.label + " filter");
+      b.addEventListener("click", function(){
+        if(item.key === "tier") state.tier = "All";
+        if(item.key === "sub") state.sub = "All";
+        if(item.key === "sort"){ state.sort = "name"; sortSelect.value = "name"; }
+        if(item.key === "training"){ state.needsTraining = false; needsTrainingChk.checked = false; }
+        if(item.key === "extras"){
+          showCardExtras = false;
+          showCardExtrasChk.checked = false;
+          try{ localStorage.setItem(SHOW_EXTRAS_KEY, "0"); }catch(e){}
+        }
+        renderFilterRow();
+        renderGrid();
+      });
+      activeFilterTags.appendChild(b);
+    });
+    filtersBtn.textContent = filters.length ? ("Filters (" + filters.length + ")") : "Filters";
   }
 
   function matches(h){
@@ -1765,8 +1937,16 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
                '<div class="kv-line">Date <b>'+esc(h.imperial.date)+'</b></div>';
     }
 
+    var mobileStatusStyle = STATUS_STYLE[h.status] || STATUS_STYLE["Undetermined"];
+    var mobileSummary =
+      '<div class="mobile-card-summary">' +
+        '<span class="status-pill" style="background:'+mobileStatusStyle[0]+';color:'+mobileStatusStyle[1]+'">'+esc(statusLabel(h.status))+'</span>' +
+        '<span class="breedings mono">'+h.breedings+' left</span>' +
+      '</div>';
+
     return '<div class="top-row">'+topRow+'</div>'+
       '<div class="name-row"><h3>'+esc(h.name)+'</h3><span class="level mono">Lv'+h.level+'</span></div>'+
+      mobileSummary+
       '<div class="swatch" style="background:'+esc(h.coatColor)+'"></div>'+
       '<div class="coat-desc">'+esc(h.coat)+'</div>'+
       bottom;
@@ -2554,7 +2734,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       '</div>' +
     '</fieldset>' +
 
-    '<fieldset class="section"><legend>Coat &amp; breeding color data</legend>' +
+    '<fieldset class="section" id="coatBreedingSection"><legend>Coat &amp; breeding color data</legend>' +
       '<div class="skills-note">Your visual description above is never replaced by this. Leave a field blank rather than guess, and mark the status honestly, most horses should start at Unknown.</div>' +
       '<div class="field"><label for="fReferenceCoat">Reference coat <span class="hint">validated purebred catalog only, filtered to this horse\'s tier</span></label><select id="fReferenceCoat"></select></div>' +
       '<div id="referenceCoatInfo" class="modal-note" hidden></div>' +
@@ -2617,7 +2797,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
     '<div class="field"><label for="fNotes">Notes</label><textarea id="fNotes" rows="3" placeholder="Anything else worth remembering"></textarea></div>' +
 
-    '<fieldset class="section"><legend>History</legend>' +
+    '<fieldset class="section" id="historySection"><legend>History</legend>' +
       '<div class="history-list" id="historyList"></div>' +
       '<div class="history-add"><input id="historyInput" type="text" placeholder="Add a note to the history log"><button class="btn small" id="historyAddBtn">Add</button></div>' +
     '</fieldset>' +
@@ -2630,7 +2810,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       '</div>' +
     '</div>' +
 
-    '<div class="editor-actions">' +
+    '<div class="editor-actions" id="editorSaveBar">' +
       '<button class="btn danger" id="deleteBtn">Delete</button>' +
       '<button class="btn primary" id="saveBtn" style="margin-left:auto;">Save horse</button>' +
     '</div>'
@@ -2932,11 +3112,36 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     closeEditorFn();
   }
 
-  function openEditor(id){
+  function setupMobileEditorSections(){
+    if(!window.matchMedia || !window.matchMedia("(max-width: 640px)").matches) return;
+    editor.querySelectorAll("fieldset.section").forEach(function(section){
+      var legend = section.querySelector("legend");
+      if(!legend) return;
+      var startsCollapsed = section.id === "coatBreedingSection" || section.id === "historySection";
+      section.classList.add("mobile-collapsible");
+      section.classList.toggle("mobile-collapsed", startsCollapsed);
+      legend.setAttribute("role", "button");
+      legend.setAttribute("tabindex", "0");
+      legend.setAttribute("aria-expanded", String(!startsCollapsed));
+      function toggleSection(){
+        var isCollapsed = section.classList.toggle("mobile-collapsed");
+        legend.setAttribute("aria-expanded", String(!isCollapsed));
+      }
+      legend.addEventListener("click", toggleSection);
+      legend.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          toggleSection();
+        }
+      });
+    });
+  }
+
+  function openEditor(id, initialDraft, initialScreenshotAction){
     editor.innerHTML = editorHTML();
     state.editingId = id;
     var existing = id ? findHorse(id) : null;
-    draft = existing ? JSON.parse(JSON.stringify(existing)) : mk({});
+    draft = existing ? JSON.parse(JSON.stringify(existing)) : (initialDraft ? mk(JSON.parse(JSON.stringify(initialDraft))) : mk({}));
     deleteArmed = false;
     var breedingsManuallyEdited = false;
     if(!existing){ draft.breedings = defaultBreedingsForSex(draft.sex); }
@@ -2986,9 +3191,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     renderTransactionSection();
     renderHistoryList();
 
-    pendingScreenshotAction = null;
+    pendingScreenshotAction = initialScreenshotAction ? JSON.parse(JSON.stringify(initialScreenshotAction)) : null;
     renderScreenshotPreview(null);
-    if(existing){
+    if(pendingScreenshotAction && pendingScreenshotAction.action === "set"){
+      renderScreenshotPreview(pendingScreenshotAction.thumb);
+    } else if(existing){
       getScreenshot(existing.id).then(function(rec){
         if(rec && !pendingScreenshotAction) renderScreenshotPreview(rec.thumb);
       }).catch(function(){ /* screenshots unavailable — leave the empty state showing */ });
@@ -3068,8 +3275,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       el("deleteConfirmRow").hidden = true;
     });
 
+    setupMobileEditorSections();
     backdrop.hidden = false;
     editor.hidden = false;
+    document.body.classList.add("editor-open");
     el("fName").focus();
     editorFormSnapshot = peekEditorFormSnapshot();
   }
@@ -3081,6 +3290,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     draft = null;
     editorFormSnapshot = null;
     pendingScreenshotAction = null;
+    document.body.classList.remove("editor-open");
   }
 
   // Copies the open form's fields into `draft`. Does not persist or close
@@ -3165,8 +3375,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
     persist();
     markSeeded();
-    showingSample = false;
-    sampleBanner.hidden = true;
+    sampleBanner.hidden = !showingSample;
     // Horse data is already safely persisted above regardless of how this
     // resolves — the screenshot write is best-effort and never blocks or
     // risks the save itself.
@@ -3436,8 +3645,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
       persist();
       markSeeded();
-      showingSample = false;
-      sampleBanner.hidden = true;
+      sampleBanner.hidden = !showingSample;
       closeModal();
       renderAll();
     });
@@ -3465,16 +3673,17 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   // ---------- Quick Add ----------
   // A stripped-down, thumb-friendly path for logging a horse the moment
   // you catch/breed/exchange it in game: name, tier, sex, level, skills,
-  // and an optional screenshot — nothing else. "Open horse" afterward
-  // hands off to the full editor for coat detail, lineage, notes, etc.
+  // and an optional screenshot — nothing else. "More details" hands the
+  // unsaved values to the full editor, whose normal save path still owns
+  // duplicate-name validation and persistence.
   function openQuickAdd(){
     var qaSkills = emptySkills([]);
     var qaTier = "8", qaSex = "Female", qaLevel = 1, qaSubtype = "";
     var qaPendingScreenshotAction = null;
 
     modalBox.innerHTML =
-      '<h2>Quick Add</h2>' +
-      '<div class="modal-note">Minimal fields for logging a horse fast. Open the full editor afterward for coat, lineage, and notes.</div>' +
+      '<h2>Add horse</h2>' +
+      '<div class="modal-note">Add the essentials now, or continue to the full editor without losing what you typed.</div>' +
       '<div class="field"><label for="qaName">Name</label><input id="qaName" type="text" placeholder="Horse name" autocomplete="off"></div>' +
       '<div class="field"><label>Tier</label><div class="big-choice-group" id="qaTierGroup"></div></div>' +
       '<div class="field" id="qaSubtypeWrap" hidden><label for="qaSubtype">Subtype</label><select id="qaSubtype"></select></div>' +
@@ -3502,7 +3711,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           '<button type="button" class="btn small danger" id="qaRemoveScreenshotBtn">Remove</button>' +
         '</div>' +
       '</div>' +
-      '<div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn primary" id="qaSaveBtn">Save horse</button></div>';
+      '<div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn" id="qaMoreDetailsBtn">More details</button><button class="btn primary" id="qaSaveBtn">Save horse</button></div>';
 
     function renderTierGroup(){
       var wrap = el("qaTierGroup");
@@ -3650,25 +3859,34 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       e.target.value = "";
     });
     function saveQuickAddHorse(name){
-      var newHorse = mk({
-        name: name, tier: qaTier, sex: qaSex, level: qaLevel,
-        subtype: isSpecialSubtypeTier(qaTier) ? qaSubtype : "",
-        skills: qaSkills, status: "Undetermined",
-        breedings: defaultBreedingsForSex(qaSex), acquisition: "Caught"
-      });
+      var newHorse = buildQuickDraft(name);
       horses.push(newHorse);
       persist();
       markSeeded();
-      showingSample = false;
-      sampleBanner.hidden = true;
+      sampleBanner.hidden = !showingSample;
       activeModalGuard = null;
       applyQaScreenshotAction(newHorse.id).then(function(){
         renderAll();
         showQaSavedConfirmation(newHorse);
       });
     }
+    function buildQuickDraft(name){
+      return mk({
+        name: name, tier: qaTier, sex: qaSex, level: qaLevel,
+        subtype: isSpecialSubtypeTier(qaTier) ? qaSubtype : "",
+        skills: JSON.parse(JSON.stringify(qaSkills)), status: "Undetermined",
+        breedings: defaultBreedingsForSex(qaSex), acquisition: "Caught"
+      });
+    }
 
     el("mCancel").addEventListener("click", closeModal);
+    el("qaMoreDetailsBtn").addEventListener("click", function(){
+      var handoffDraft = buildQuickDraft(el("qaName").value.trim());
+      var screenshotHandoff = qaPendingScreenshotAction ? JSON.parse(JSON.stringify(qaPendingScreenshotAction)) : null;
+      activeModalGuard = null;
+      closeModal();
+      openEditor(null, handoffDraft, screenshotHandoff);
+    });
     el("qaSaveBtn").addEventListener("click", function(){
       var name = el("qaName").value.trim();
       if(!name){ el("qaName").focus(); return; }
@@ -3961,9 +4179,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         return;
       }
       horses = list.map(function(h){ return mk(h); });
+      showingSample = false;
       persist();
       markSeeded();
-      showingSample = false;
       sampleBanner.hidden = true;
       closeModal();
       renderAll();
@@ -4217,9 +4435,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         if(c) byId[c.id] = c.incoming;
       });
       horses = Object.keys(byId).map(function(id){ return mk(byId[id]); });
+      showingSample = false;
       persist();
       markSeeded();
-      showingSample = false;
       sampleBanner.hidden = true;
       transferFromLaunch = false;
       closeModal();
@@ -4239,9 +4457,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       }
       savePreTransferSnapshot();
       horses = incomingHorses.map(function(h){ return mk(h); });
+      showingSample = false;
       persist();
       markSeeded();
-      showingSample = false;
       sampleBanner.hidden = true;
       transferFromLaunch = false;
       closeModal();
@@ -5054,9 +5272,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       counts.skipped += (wiz.records.length - included.length);
     }
 
+    showingSample = false;
     persist();
     markSeeded();
-    showingSample = false;
     sampleBanner.hidden = true;
     wiz.completed = true;
     wiz.report = counts;
@@ -5102,8 +5320,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   }
 
   // ---------- wiring ----------
-  document.getElementById("addBtn").addEventListener("click", function(){ openEditor(null); });
-  document.getElementById("quickAddBtn").addEventListener("click", openQuickAdd);
+  document.getElementById("addBtn").addEventListener("click", openQuickAdd);
+  document.getElementById("mobileAddFab").addEventListener("click", openQuickAdd);
   document.getElementById("exchangeBtn").addEventListener("click", openExchangeModal);
   document.getElementById("exportBtn").addEventListener("click", openExportModal);
   document.getElementById("importBtn").addEventListener("click", openImportModal);
@@ -5139,7 +5357,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   backdrop.addEventListener("click", attemptCloseEditor);
   document.addEventListener("keydown", function(e){
     if(e.key==="Escape"){
-      if(!modalBackdrop.hidden) attemptCloseModal();
+      if(filterControls.classList.contains("open")) closeFilterSheet();
+      else if(document.querySelector("header.top .actions").classList.contains("mobile-open")) closeMobileMenu();
+      else if(!modalBackdrop.hidden) attemptCloseModal();
       else if(!editor.hidden) attemptCloseEditor();
     }
   });
@@ -5162,18 +5382,69 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   sortSelect.addEventListener("change", function(){
     state.sort = sortSelect.value;
     renderGrid();
+    renderActiveFilterTags();
   });
   needsTrainingChk.checked = state.needsTraining;
   needsTrainingChk.addEventListener("change", function(){
     state.needsTraining = needsTrainingChk.checked;
     renderGrid();
+    renderActiveFilterTags();
   });
   showCardExtrasChk.checked = showCardExtras;
   showCardExtrasChk.addEventListener("change", function(){
     showCardExtras = showCardExtrasChk.checked;
     try{ localStorage.setItem(SHOW_EXTRAS_KEY, showCardExtras ? "1" : "0"); }catch(e){}
     renderGrid();
+    renderActiveFilterTags();
   });
+
+  function openFilterSheet(){
+    filterControls.classList.add("open");
+    filterSheetBackdrop.hidden = false;
+    filtersBtn.setAttribute("aria-expanded", "true");
+  }
+  function closeFilterSheet(){
+    filterControls.classList.remove("open");
+    filterSheetBackdrop.hidden = true;
+    filtersBtn.setAttribute("aria-expanded", "false");
+  }
+  filtersBtn.addEventListener("click", openFilterSheet);
+  filtersCloseBtn.addEventListener("click", closeFilterSheet);
+  filterSheetBackdrop.addEventListener("click", closeFilterSheet);
+
+  var headerActions = document.querySelector("header.top .actions");
+  var mobileMenuBtn = document.getElementById("mobileMenuBtn");
+  function closeMobileMenu(){
+    headerActions.classList.remove("mobile-open");
+    mobileMenuBtn.setAttribute("aria-expanded", "false");
+  }
+  mobileMenuBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    var willOpen = !headerActions.classList.contains("mobile-open");
+    headerActions.classList.toggle("mobile-open", willOpen);
+    mobileMenuBtn.setAttribute("aria-expanded", String(willOpen));
+  });
+  document.addEventListener("click", function(e){
+    if(headerActions.contains(e.target) || e.target === mobileMenuBtn) return;
+    closeMobileMenu();
+  });
+  document.getElementById("exchangeBtn").addEventListener("click", closeMobileMenu);
+  document.getElementById("signOutBtn").addEventListener("click", closeMobileMenu);
+
+  // Mirror the existing status element into the phone-only dot without
+  // changing the cloud state machine that owns that element.
+  (function(){
+    var source = document.getElementById("cloudStatus");
+    var dot = document.getElementById("mobileCloudDot");
+    function mirrorCloudStatus(){
+      var label = source.textContent || "Cloud status";
+      dot.setAttribute("data-state", source.getAttribute("data-state") || "idle");
+      dot.setAttribute("aria-label", label);
+      dot.title = label;
+    }
+    new MutationObserver(mirrorCloudStatus).observe(source, { attributes:true, childList:true, characterData:true, subtree:true });
+    mirrorCloudStatus();
+  })();
 
   // Header dropdown menus (Data & Backups, Appearance): both are plain
   // inline buttons now, not position:fixed, so they can't overlap mobile
@@ -5205,8 +5476,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var appearanceBtn = document.getElementById("appearanceBtn");
   var appearancePanel = document.getElementById("appearancePanel");
   var themeSelect = document.getElementById("themeSelect");
+  var phoneThemeSelect = document.getElementById("phoneThemeSelect");
   var darknessRange = document.getElementById("darknessRange");
   themeSelect.value = themePrefs.theme;
+  phoneThemeSelect.value = phoneTheme;
   darknessRange.value = themePrefs.darkness;
   wireDropdown(appearanceBtn, appearancePanel);
   themeSelect.addEventListener("change", function(){
@@ -5214,6 +5487,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     applyTheme();
     persistTheme();
     if(window.jinxStablesParticles) window.jinxStablesParticles.start(themePrefs.theme);
+  });
+  phoneThemeSelect.addEventListener("change", function(){
+    phoneTheme = phoneThemeSelect.value;
+    applyTheme();
+    try{ localStorage.setItem(PHONE_THEME_KEY, phoneTheme); }catch(e){}
   });
   darknessRange.addEventListener("input", function(){
     themePrefs.darkness = parseInt(darknessRange.value,10) || 0;
