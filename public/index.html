@@ -87,6 +87,15 @@
     radial-gradient(circle at 50% 0%, rgba(140,40,150,.22), transparent 55%),
     linear-gradient(180deg, #1C0E22 0%, #150A1A 45%, #0A0610 100%);}
 
+  /* Match the interface panels and accents to each non-green background.
+     Classic and Forest intentionally keep the original stable-green palette;
+     status colors remain independent so saved/saving/error stay recognizable. */
+  body[data-bgtheme="moonlit"]{--ink:#121826; --panel:#1A2233; --panel-raised:#222C40; --border:#33405A; --gold:#A9C1E8; --gold-soft:#243149; --text-soft:#9FAAC0; --text-faint:#6B7690;}
+  body[data-bgtheme="autumn"]{--ink:#1E1510; --panel:#2A1D15; --panel-raised:#35251B; --border:#4A3426; --gold:#E0823A; --gold-soft:#3D2616; --text-soft:#B8A28E; --text-faint:#80695A;}
+  body[data-bgtheme="snowy"]{--ink:#131C26; --panel:#1A2633; --panel-raised:#223244; --border:#36495E; --text:#EEF3F8; --gold:#A9D3EE; --gold-soft:#20364A; --text-soft:#A7B8C9; --text-faint:#72869A;}
+  body[data-bgtheme="desert"]{--ink:#22160F; --panel:#2E1E14; --panel-raised:#3A271A; --border:#573A26; --gold:#E8A33D; --gold-soft:#402A15; --text-soft:#C2A98F; --text-faint:#8A7058;}
+  body[data-bgtheme="blackspirit"]{--ink:#140E18; --panel:#1E1424; --panel-raised:#281A30; --border:#43294F; --gold:#B06BD8; --gold-soft:#2E1B3A; --text-soft:#B39FC0; --text-faint:#7C6889;}
+
   /* Dropdown menus anchored inline in the header (Data & Backups, Appearance)
      — no position:fixed here on purpose, so they can never overlap mobile
      browser chrome or the app's own header, and so [hidden] always works
