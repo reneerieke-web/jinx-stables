@@ -385,7 +385,11 @@
     body{padding-inline:0;}
     #app{padding:14px 12px calc(88px + env(safe-area-inset-bottom,0px)); gap:12px;}
     .two-col{grid-template-columns:1fr;}
-    #editor{left:0; right:0; width:100vw; padding:16px 14px calc(88px + env(safe-area-inset-bottom,0px));}
+    #editor{left:0; right:0; width:100%; max-width:100%; min-width:0; overflow-x:hidden;
+      padding:16px 14px calc(88px + env(safe-area-inset-bottom,0px));}
+    #editor > *, #editor fieldset.section, #editor .field, #editor .two-col{min-width:0; max-width:100%;}
+    #editor fieldset.section{width:100%; min-inline-size:0;}
+    #editor .two-col{grid-template-columns:minmax(0,1fr) !important;}
     .wiz-mapping-grid{grid-template-columns:1fr;}
 
     .mobile-only{display:flex;}
@@ -413,11 +417,14 @@
     #mobileAddFab{display:flex; position:fixed; z-index:17; right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
       width:58px; height:58px; align-items:center; justify-content:center; border:0; border-radius:50%;
       background:var(--gold); color:#20180B; box-shadow:0 8px 24px rgba(0,0,0,.45); font-size:32px; line-height:1; font-weight:500;}
-    body.editor-open #mobileAddFab{display:none;}
+    body.editor-open #mobileAddFab, body.mobile-menu-open #mobileAddFab{display:none;}
 
     /* Static phone backgrounds: simple color tints with no continuously
        animated layer after the welcome screen. */
     .phone-theme-control{display:flex; flex-direction:column; gap:6px;}
+    #appearancePanel > label[for="themeSelect"], #themeSelect,
+    #appearancePanel > label[for="darknessRange"], #darknessRange,
+    #appearancePanel > .modal-note{display:none;}
     body[data-phone-theme="dark"] #bgLayer{background:#101612;}
     body[data-phone-theme="amber"] #bgLayer{background:linear-gradient(155deg,#2D2517 0%,#1B1D17 52%,#101511 100%);}
     body[data-phone-theme="blue"] #bgLayer{background:linear-gradient(155deg,#17253A 0%,#111B2B 52%,#0B111C 100%);}
@@ -476,10 +483,16 @@
     fieldset.section.mobile-collapsible > legend::after{content:"⌃"; float:right; color:var(--text-soft); font-size:14px;}
     fieldset.section.mobile-collapsible.mobile-collapsed > legend::after{content:"⌄";}
     fieldset.section.mobile-collapsible.mobile-collapsed > *:not(legend){display:none !important;}
+    #skillGrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .skill-toggle{min-width:0; padding:8px; gap:7px; font-size:12.5px; overflow-wrap:anywhere;}
+    .history-add{min-width:0;}
+    .history-add input{min-width:0;}
     #editorSaveBar{position:sticky; z-index:4; bottom:0;
       margin:0 -14px -16px; padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+      display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
       background:rgba(36,43,36,.97); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
-    #editorSaveBar .btn{min-height:44px;}
+    #editorSaveBar .btn{min-height:44px; min-width:0; white-space:nowrap;}
+    #editorSaveBar #saveBtn{justify-self:end; margin-left:0 !important;}
     #modalBox{max-height:92vh; padding:18px 14px;}
 
     /* Mobile launch screen: use the real phone viewport, stack the choices,
@@ -569,7 +582,7 @@
             <option value="blackspirit">Black Spirit</option>
           </select>
           <div class="phone-theme-control">
-            <label for="phoneThemeSelect">Phone color</label>
+            <label for="phoneThemeSelect">Phone theme</label>
             <select id="phoneThemeSelect">
               <option value="dark">Dark</option>
               <option value="amber">Amber</option>
@@ -5416,12 +5429,14 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var mobileMenuBtn = document.getElementById("mobileMenuBtn");
   function closeMobileMenu(){
     headerActions.classList.remove("mobile-open");
+    document.body.classList.remove("mobile-menu-open");
     mobileMenuBtn.setAttribute("aria-expanded", "false");
   }
   mobileMenuBtn.addEventListener("click", function(e){
     e.stopPropagation();
     var willOpen = !headerActions.classList.contains("mobile-open");
     headerActions.classList.toggle("mobile-open", willOpen);
+    document.body.classList.toggle("mobile-menu-open", willOpen);
     mobileMenuBtn.setAttribute("aria-expanded", String(willOpen));
   });
   document.addEventListener("click", function(e){
