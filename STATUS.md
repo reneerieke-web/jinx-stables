@@ -8,7 +8,7 @@ Updated: September 26, 2026 (ET)
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `6543f03` — SheetJS 0.20.3 core upgrade and spreadsheet import limits, following tier XSS fix `77a17b0`
-- **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update
+- **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update; Renee approved the resulting preview on phone and desktop
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -39,6 +39,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Tier XSS is fixed (`77a17b0`): restored/imported tiers are restricted to `TIER_LABEL`, and the tier badge is escaped before HTML rendering. Claude’s exploit test fired before the fix and zero times afterward on desktop and phone; a real full-stable backup retained every valid tier.
 - SheetJS is upgraded from 0.18.5 to the 0.20.3 core build (`6543f03`), with 5 MB and 2,000-row import limits and formulas/HTML disabled while parsing. Codex downloaded the official file from `cdn.sheetjs.com`; it and the embedded copy are byte-for-byte identical at 507,212 bytes with SHA-256 `197255b0c278588117e45c14c1b25398562864cd9ffa9752c4b4d29f6d9bfd27`.
 - Launch Step 2 completed: `https://jinxsstables.com` and `https://www.jinxsstables.com` are included in `CLOUD_ALLOWED_ORIGINS`, ready for the later custom-domain connection.
+- Launch Step 3 approved for production: Renee tested the preview on phone and desktop, and both exported workbooks matched exactly at 77 horses, 67 columns, and identical cell contents.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
@@ -50,10 +51,18 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Claude reviews the merged security changes and production-origin allowlist; Renee tests the preview on phone and desktop.
-2. Fast-forward `main` only after Renee approves the preview.
-3. Connect `jinxsstables.com` (double **s**) only after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
-4. Do not begin the horse-advisor and coat-picker feature until the custom domain is live.
+1. Connect `jinxsstables.com` (double **s**) after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
+2. Add screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+3. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+
+## Tester invite note
+
+- Screenshots stay on the device you add them on for now.
+
+## Decisions still open for Renee
+
+- What “Ultimate horse” means for the advisor.
+- Whether let-go suggestions should lean toward silver from the Horse Market or Flowers of Oblivion from Imperial delivery.
 
 ## Domain deployment
 
@@ -71,7 +80,7 @@ When `jinxsstables.com` is connected, update these three items together:
 - Do not modify sync, authentication, or stored-data behavior during visual/layout work.
 - Do not change Supabase without Renee’s explicit approval and the baton.
 - Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
-- Do not merge to `main` until the security commits are reviewed, the preview is tested, and Renee gives approval; do not connect `jinxsstables.com` until production is confirmed and Renee approves each configuration step.
-- Do not begin the horse-advisor and coat-picker feature until the launch and custom-domain work is complete.
+- Do not connect `jinxsstables.com` until production is confirmed and Renee approves each configuration step.
+- Do not begin screenshot sync until the custom domain is live; do not ship the horse-advisor and coat-picker feature until screenshot sync is complete and reviewed.
 - Do not run live attack tests against Renee’s real stable.
 - Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
