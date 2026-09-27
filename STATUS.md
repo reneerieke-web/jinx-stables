@@ -6,7 +6,7 @@ Updated: September 27, 2026 (ET)
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** `claude/screenshot-storage-sql` (storage SQL revision 2, waiting for Codex review)
+- **Claude's working branch:** none open; `claude/screenshot-storage-sql` was approved by Codex and fast-forwarded into `cloud-sync-preview`
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
@@ -60,6 +60,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Warning overlap fixed by Claude (`35da65f`, on `claude/cloud-limit-warning-fix`, awaiting Codex review): the header `#cloudStatus` now says only "Cloud save blocked" and the full message lives only in `#cloudLimitBanner`. Regression test added; overlap reproduced at 1280 and 700 px on the old code and gone after; phone header unchanged.
 - Codex approved the warning fix and merged Claude's branch into `cloud-sync-preview` at `e48781f` (tests pass; `main` untouched).
 - Storage SQL revision 2 (`264d7bf`, **not applied**): Codex found revision 1 (`c74681c`) counted `storage.objects` inside its own policy; Claude reproduced "infinite recursion" on the first upload. Uploads now require a live horse row in the caller's own stable, so the 2,000-horse limit caps storage at 4,000 objects. Local replica tests (`tests/storage/`) pass 27/27. Known gap: files of horses purged after 30 days remain until orphan cleanup.
+- Codex approved `264d7bf` and `3a4d00e` with no blocking findings; Claude fast-forwarded `cloud-sync-preview` to include them. The SQL is still **not applied**.
 - Updated screenshot sync plan committed to `docs/screenshot-sync-plan.md` (adds Dream/Mythical skip, portrait color tip, zoom, OCR later).
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 
@@ -72,11 +73,11 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Codex reviews `claude/screenshot-storage-sql` (SQL revision 2, tests, plan update). After approval, merge into `cloud-sync-preview`.
-2. Renee decides whether and when to apply `20260927_screenshot_storage.sql`. No Supabase change without her explicit OK.
+1. Renee decides when to open Supabase and run `supabase/review/20260927_screenshot_storage.sql`. No Supabase change without her explicit OK.
+2. **Release requirement (Codex):** orphan cleanup for screenshots of purged horses must exist before screenshot sync goes live broadly.
 3. Add the privacy note to the site footer.
 4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-5. Build screenshot sync (plan sections 3 to 7) with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+5. Build screenshot sync (plan sections 3 to 7) with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release. The upload queue must wait until a horse row reaches the cloud.
 6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
