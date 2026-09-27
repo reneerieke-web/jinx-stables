@@ -125,3 +125,15 @@ Roughly 150 to 300 KB per horse (full + thumb). The free plan's 1 GB holds about
 - A: one-time offer to upload existing device screenshots, with the prompt.
 - B: keep a deleted horse's screenshot for the 30 days so Restore brings it back.
 - C: full-size screenshot capped at 1280 px.
+
+## Photo identification (post-release; agreed Sept 27)
+Requirements (Chip, agreed by Renee and Claude):
+1. Visual recognition: suggest the most likely BDO coat/model from the horse itself, using a validated reference dataset.
+2. Screen recognition: if BDO UI text is visible, also read tier, level, sex, breedings and skills.
+3. Cross-check: use screen text, and the horse's own record (e.g. its tier), to narrow visual candidates.
+4. Horse-only fallback: with no readable UI, visual identification still works and shows likely matches to confirm.
+5. Never silently overwrite fields; the player confirms every suggestion.
+6. No confidence percentages until accuracy is measured against labeled examples.
+
+Build order (Claude's recommendation): tap-to-sample color picker with reference pictures first (works on every horse-only picture and builds the confirmed reference set), then panel-text reading, then automatic visual matching once the reference set and accuracy tests exist. Reference images must be ones we are allowed to use (no copying BDFoundry images); no outside AI service for images.
+

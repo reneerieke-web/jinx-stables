@@ -6,9 +6,9 @@ Updated: September 27, 2026 (ET)
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** none open; `claude/screenshot-sync-app` (Codex approved `c15726a`, plus the agreed device-only wording) was fast-forwarded into `cloud-sync-preview`
+- **Claude's working branch:** none open. Latest: `claude/shot-cache-bust` (`061b812`), approved by Codex and fast-forwarded into `cloud-sync-preview`.
 - **Active branch:** `cloud-sync-preview`
-- **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
+- **Last code commit:** `061b812` — screenshot cache-busting fix (on `cloud-sync-preview`; production `main` is still `61a2b41`)
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
 - **Review status:** Claude approved `61a2b41`; its tests pass, desktop and phone are clean, blocked snapshots remain dirty, and account connection no longer traps the user
 
@@ -64,6 +64,8 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Codex approved `264d7bf` and `3a4d00e` with no blocking findings; Claude fast-forwarded `cloud-sync-preview` to include them. The SQL is still **not applied**.
 - **Storage SQL applied (Sept 27, 10:35 AM ET)** with Renee's explicit approval: Claude ran the exact reviewed file from `cloud-sync-preview` (`2cf585a`, SHA-256 `20098208…c9c5bb`) in one transaction. Read-only verification: bucket `horse-screenshots` is private, 600 KB, image/jpeg only; exactly the four owner policies exist (SELECT/INSERT/UPDATE/DELETE, role authenticated); `horse_screenshot_upload_ok` is SECURITY INVOKER with an empty search_path, EXECUTE for authenticated (not anon); 0 storage objects; all 78 horse rows intact. Supabase security advisor shows only the known leaked-password warning (not applicable, Discord-only).
 - **Storage cross-account test PASSED (Sept 27, ~10:45 AM ET)**, run by Claude with Renee's approval as two simulated signed-in users inside forced-rollback transactions (direct-delete guard `storage.allow_delete_query` enabled only inside the test, as the Storage API does). 32 checks: own uploads, both replace paths (upsert on the real `(bucket_id, name, version)` key and plain update), reads and deletes succeed; soft-deleted, unknown and other-user horse ids, other-user folders, `../`, extra folder, empty folder, other names and PNG are refused; A cannot list, edit, overwrite (upsert or update), move into, or delete B's files; signed-out visitors see nothing, cannot upload, and cannot run the path-check function. Two first-run failures were test-query mistakes (wrong conflict key; an unexecuted function call) and passed when corrected. Afterward: 1 user, 1 stable, 78 horses, 0 stored objects, no test rows left.
+- **Real-device screenshot tests PASSED (Sept 27, Renee; iPhone Safari + Windows Chrome, preview site):** two-way sync (6 horses); replace both directions; remove and re-add both directions; delete → Recently deleted → Restore keeps the picture on both devices (CaramelMeringue); offline remove syncs after reconnect; offline upload of an iPhone camera photo uploads after reconnect (cloud files and pointer confirmed read-only); iPhone camera photos (the HEIC question) display on Windows Chrome; logout/login returns the full stable (48 active / 77 total).
+- **Stale-picture bug found and fixed:** after a Replace, normal Chrome kept showing the old picture even after a full reload while Incognito showed the new one. Cause: fixed file names meant the same download URL, and a cached response was saved under the new version. Fix `061b812` (Codex approved, no SQL/Supabase changes): downloads pass `cacheNonce=<version>`, and older cached copies are re-fetched once. Verified live: the stuck copy corrected itself, and a fresh phone Replace (PralineKnot) showed on normal Chrome after reload.
 - Updated screenshot sync plan committed to `docs/screenshot-sync-plan.md` (adds Dream/Mythical skip, portrait color tip, zoom, OCR later).
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 
@@ -80,9 +82,9 @@ Release sequence (agreed Sept 27; finish what is built, no new features):
 
 1. ~~Apply the storage SQL~~ Done Sept 27 (see Done).
 2. Security: ~~Claude's database-level storage test~~ passed Sept 27 (see Done). Still to do: Mini's live test through the app with a separate Discord test account.
-3. Real-device tests by Renee (iPhone especially, to settle HEIC/photo picking): computer → phone, phone → computer, replace, delete horse, Recently deleted, restore, failed upload/retry, logout/login.
-4. Migration test: a roster saved on a device before sign-in uploads exactly once, with no missing or duplicated horses. (Note: "Start an empty stable" requires sign-in today and sample horses are never saved, so the test uses a pre-cloud local roster. Whether guests should keep horses without signing in is a later product decision.)
-5. Beta with the four testers: plain player tasks, no expected results given.
+3. ~~Real-device tests~~ passed Sept 27 (see Done), including the stale-picture fix `061b812`.
+4. Migration test: **not tested.** A new visitor cannot create or keep a local stable without signing in, so an authentic pre-cloud local roster could not be reproduced. Renee decided not to build a guest workflow just for this test. Whether guests should keep horses without signing in is a later product decision.
+5. **NOW: beta with the four testers** on `cloud-sync-preview` at `061b812` (plus docs-only commits). Tester guide: `docs/beta-tester-guide.md`. Plain player tasks, no expected results given. Only release blockers change code during beta.
 6. Fix release blockers only; record usability items and ideas.
 7. Release-candidate freeze: one exact `cloud-sync-preview` SHA. Nobody changes it. Claude reviews, Codex reviews, Renee and testers test that SHA.
 8. Fast-forward `main` to that exact SHA.
@@ -91,11 +93,18 @@ Caution while preview and production share the same data: do not use "Restore Ap
 
 Other items, after the release:
 - Add the privacy note to the site footer.
-- Prevent iOS from offering "AutoFill Contact" on the horse Name field.
+- Prevent iOS from offering "AutoFill Contact" on the horse Name field **and** the delete-confirmation name box.
 - Ship the horse advisor, Keep this coat, and screenshot color picker from Claude's `horse-advisor-and-coat-picker.diff`.
 - Postponed on purpose: Google/Facebook login, advanced breeding tools, coat research, AI coat recognition, new themes, shared stables. The welcome artwork stays on its own `welcome-artwork-preview` track.
 
 ## Backlog
+
+Usability notes from real-device testing (not blockers; for the timeboxed polish pass unless marked otherwise):
+- A device that stays open and focused does not pick up another device's changes until you switch back to it or reload. Existing horse-sync behavior (pull on focus/visibility). A periodic pull while visible would fix it; protected sync code, post-beta decision.
+- Phone cards do not show the camera badge (desktop does).
+- Phone editor: headings show through the sticky Delete/Save bar; make it opaque above scrolling content in every theme (390 px, Dark/Amber/Blue).
+- Photo identification (post-release) requirements are recorded in `docs/screenshot-sync-plan.md`.
+- No CI runs the tests on GitHub; they are run locally by Claude and Codex. Optional later improvement.
 
 - **Pre-existing (found during screenshot review, not changed):** `fetchCloudRoster()` and `pullCloudWhenSafe()` read horses in one request. The API returns at most 1,000 rows, while stables may hold 2,000, so a stable over 1,000 horses would only show 1,000 on a device. No cloud data is deleted by this, but it should be paged like the screenshot cleanup before any stable approaches 1,000 horses. Protected sync code: needs its own reviewed change.
 
