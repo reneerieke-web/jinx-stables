@@ -3,16 +3,31 @@
 --
 -- Creates one PRIVATE bucket for horse screenshots and owner-only policies.
 --   * Bucket `horse-screenshots`: not public, 600 KB per file, image/jpeg only.
---   * Paths must be exactly  {auth.uid()}/{horse_id}/full.jpg  or  .../thumb.jpg
+--   * Paths must be exactly  {auth.uid()}/{horse_id}/{version}-full.jpg
+--     or  {auth.uid()}/{horse_id}/{version}-thumb.jpg  (version: 1-40 of A-Z a-z 0-9 _ -)
 --   * Upload/overwrite is allowed only when {horse_id} is a live (not soft-deleted)
 --     horse row in the caller's own stable. Read and delete are allowed anywhere
 --     inside the caller's own folder, so Restore and later orphan cleanup work.
 --   * `anon` gets no policy, so it gets nothing.
 --
+-- Revision 3 (after Codex review of the app, d741432):
+--   * Versioned, immutable file names. Each upload writes a new
+--     {version}-thumb.jpg / {version}-full.jpg pair and the horse's pointer
+--     names that version, so a thumbnail and full image always come from the
+--     same picture even if two devices upload at the same moment. The app
+--     deletes older versions after the new pointer is confirmed, and the
+--     daily cleanup removes any that were missed.
+--   * Consequence: the fixed 4,000-object ceiling from revision 2 no longer
+--     holds; a horse can briefly hold more than one version. Revision 2's
+--     ceiling was also not quota protection (4,000 x 600 KB = 2.4 GB, more
+--     than the free plan's 1 GB), so storage use is protected the same way
+--     as before in practice: 600 KB per file, owner-only folders, live-horse
+--     rule, version cleanup, and Supabase usage monitoring.
+--
 -- Revision 2 (after Codex review of c74681c):
 --   * Removed the 4,000-object count, which queried storage.objects from inside a
 --     storage.objects policy and also blocked overwrites at exactly 4,000.
---   * The cap now comes from the horse-row rule: one horse id allows only
+--   * (Superseded by revision 3.) The cap came from the horse-row rule: one horse id allowed only
 --     full.jpg and thumb.jpg, and a stable holds at most 2,000 horse rows
 --     (enforce_horses_per_stable_limit), so live uploads cap at 4,000 objects.
 --   * Known gap: files of a horse purged after 30 days stay behind until orphan
@@ -34,7 +49,7 @@ begin;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('horse-screenshots', 'horse-screenshots', false, 614400, array['image/jpeg']);
 
--- True only for {caller uid}/{live horse id in caller's stable}/(full|thumb).jpg.
+-- True only for {caller uid}/{live horse id in caller's stable}/{version}-(full|thumb).jpg.
 -- security invoker: the lookup runs under the caller's own RLS on stables and
 -- horses, so it can never see another user's rows.
 create or replace function public.horse_screenshot_upload_ok(object_name text)
@@ -46,7 +61,7 @@ set search_path = ''
 as $$
   select
     object_name ~ (
-      '^' || (select auth.uid())::text || '/[A-Za-z0-9_-]{1,64}/(full|thumb)\.jpg$'
+      '^' || (select auth.uid())::text || '/[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,40}-(full|thumb)\.jpg$'
     )
     and exists (
       select 1

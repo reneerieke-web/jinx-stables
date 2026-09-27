@@ -1,8 +1,12 @@
 // End-to-end test of screenshot sync against an in-memory fake Supabase.
-// Nothing here talks to the real project. Two browser contexts act as two
-// devices signed in to the same account; a third checks guest mode.
+// Nothing here talks to the real project. Browser contexts act as separate
+// devices signed in to the same account; one more checks guest mode.
 //
-//   npm i playwright   (Chromium must be available)
+// The fake mirrors supabase/review/20260927_screenshot_storage.sql
+// (revision 3: owner folder, live horse, versioned {v}-full/-thumb.jpg,
+// 600 KB, image/jpeg) and PostgREST's 1,000-row response cap.
+//
+//   npm i playwright   (needs a Chromium; set CHROMIUM_PATH if not bundled)
 //   node tests/screenshot-sync.e2e.js
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -13,6 +17,7 @@ const ROOT = path.join(__dirname, "..", "public");
 const ORIGIN = "http://jinx.test";
 const UID = "11111111-1111-4111-8111-111111111111";
 const STABLE = "22222222-2222-4222-8222-222222222222";
+const MAX_ROWS = 1000;
 
 // ---------- fake backend (shared by every page) ----------
 const now = () => new Date().toISOString();
@@ -25,18 +30,17 @@ const horseData = (id, name, tier, sex, level) => ({
   acquisition: "Unknown", parentNames: null, project: { type: "None", label: "" }, sale: null,
   imperial: null, exchange: null, consumedIn: null, history: [],
 });
+const makeRow = (id, name, tier = "6", sex = "Female", level = 1) =>
+  ({ stable_id: STABLE, id, data: horseData(id, name, tier, sex, level), updated_at: now(), deleted_at: null });
 const db = {
-  horses: [
-    { stable_id: STABLE, id: "h_one", data: horseData("h_one", "Cannoli", "8", "Male", 15), updated_at: now(), deleted_at: null },
-    { stable_id: STABLE, id: "h_two", data: horseData("h_two", "Taffy", "7", "Female", 16), updated_at: now(), deleted_at: null },
-    { stable_id: STABLE, id: "h_three", data: horseData("h_three", "NillaCrumpet", "6", "Female", 9), updated_at: now(), deleted_at: null },
-  ],
+  horses: [makeRow("h_one", "Cannoli", "8", "Male", 15), makeRow("h_two", "Taffy", "7", "Female", 16), makeRow("h_three", "NillaCrumpet", "6", "Female", 9)],
   stables: [{ id: STABLE, owner_id: UID, name: "Test Stable" }],
 };
 const storage = new Map(); // path -> {b64, type, updated_at}
 let bucketExists = true;
 let forceServerError = false;
 const storageLog = [];
+const rangeLog = [];
 let stamp = 0;
 const tick = () => new Date(Date.now() + (++stamp)).toISOString();
 
@@ -49,6 +53,10 @@ function runQuery(spec) {
   });
   if (spec.kind === "select") {
     let out = rows.filter(match);
+    if (spec.order) out = out.slice().sort((a, b) => (a[spec.order] < b[spec.order] ? -1 : a[spec.order] > b[spec.order] ? 1 : 0));
+    if (spec.range) { rangeLog.push(spec.range.join("-")); out = out.slice(spec.range[0], spec.range[1] + 1); }
+    out = out.slice(0, MAX_ROWS); // PostgREST default max rows
+    if (/shot:data->screenshot/.test(spec.columns || "")) out = out.map((r) => ({ id: r.id, shot: r.data && r.data.screenshot !== undefined ? r.data.screenshot : null }));
     if (spec.single) return { data: out[0] || null, error: out[0] || spec.maybe ? null : { message: "no rows" } };
     return { data: JSON.parse(JSON.stringify(out)), error: null };
   }
@@ -72,20 +80,16 @@ function runQuery(spec) {
     });
     return { data: JSON.parse(JSON.stringify(out)), error: null };
   }
-  if (spec.kind === "insert") {
-    rows.push({ ...spec.payload });
-    return { data: spec.payload, error: null };
-  }
+  if (spec.kind === "insert") { rows.push({ ...spec.payload }); return { data: spec.payload, error: null }; }
   return { data: null, error: { message: "unsupported" } };
 }
 
-// Mirrors supabase/review/20260927_screenshot_storage.sql for the owner.
 function storageOp(op, a) {
   storageLog.push(op + " " + (a.path || (a.paths || []).join(",") || a.prefix || ""));
   if (!bucketExists) return { data: null, error: { statusCode: "404", message: "Bucket not found" } };
   if (op === "upload" && forceServerError) return { data: null, error: { statusCode: "500", message: "Internal Server Error" } };
   if (op === "upload") {
-    const m = /^([^/]+)\/([A-Za-z0-9_-]{1,64})\/(full|thumb)\.jpg$/.exec(a.path);
+    const m = /^([^/]+)\/([A-Za-z0-9_-]{1,64})\/[A-Za-z0-9_-]{1,40}-(full|thumb)\.jpg$/.exec(a.path);
     const live = m && m[1] === UID && db.horses.some((h) => h.stable_id === STABLE && h.id === m[2] && h.deleted_at == null);
     if (!live) return { data: null, error: { statusCode: "403", message: "new row violates row-level security policy" } };
     if (a.type !== "image/jpeg") return { data: null, error: { statusCode: "415", message: "mime type not supported" } };
@@ -117,6 +121,8 @@ function storageOp(op, a) {
   }
   return { data: null, error: { message: "unsupported" } };
 }
+const filesOf = (id) => [...storage.keys()].filter((p) => p.startsWith(`${UID}/${id}/`)).map((p) => p.split("/").pop()).sort();
+const pairOf = (v) => [`${v}-full.jpg`, `${v}-thumb.jpg`];
 
 // ---------- fake supabase-js loaded into the page ----------
 const FAKE_CLIENT = `
@@ -125,12 +131,14 @@ const FAKE_CLIENT = `
   function b64ToBlob(b64, type){ var bin = atob(b64), u = new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Blob([u], {type:type}); }
   function blobToB64(blob){ return new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){ res(String(fr.result).split(",")[1]); }; fr.readAsDataURL(blob); }); }
   function builder(table){
-    var spec = { table: table, kind: "select", filters: [], payload: null, single: false, maybe: false };
+    var spec = { table: table, kind: "select", filters: [], payload: null, single: false, maybe: false, columns: "", order: null, range: null };
     var q = {
-      select: function(){ if(spec.kind === "none") spec.kind = "select"; return q; },
+      select: function(cols){ spec.columns = cols || ""; return q; },
       eq: function(c,v){ spec.filters.push({op:"eq", col:c, val:v}); return q; },
       not: function(c){ spec.filters.push({op:"notnull", col:c}); return q; },
-      order: function(){ return q; }, limit: function(){ return q; },
+      order: function(c){ spec.order = c; return q; },
+      range: function(a,b){ spec.range = [a,b]; return q; },
+      limit: function(){ return q; },
       maybeSingle: function(){ spec.single = true; spec.maybe = true; return q; },
       single: function(){ spec.single = true; return q; },
       insert: function(p){ spec.kind = "insert"; spec.payload = p; return q; },
@@ -185,13 +193,18 @@ async function device(browser, opts = {}) {
   return page;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const waitFor = async (fn, what, ms = 15000) => {
   const t0 = Date.now();
-  while (Date.now() - t0 < ms) { if (await fn()) return; await new Promise((r) => setTimeout(r, 150)); }
+  while (Date.now() - t0 < ms) { if (await fn()) return; await sleep(150); }
   throw new Error("timed out waiting for " + what);
 };
 const row = (id) => db.horses.find((h) => h.id === id);
+const ptr = (id) => row(id).data.screenshot;
 const cardFor = (page, name) => page.locator(".card", { hasText: name }).first();
+const localRec = (page, id) => page.evaluate((hid) => new Promise((res) => { const r = indexedDB.open("jinxStablesMedia", 1); r.onsuccess = () => { const g = r.result.transaction("screenshots").objectStore("screenshots").get(hid); g.onsuccess = () => res(g.result || null); }; }), id);
+const putLocal = (page, id, color, cloudV) => page.evaluate(({ hid, color, cloudV }) => new Promise((res) => { const c = document.createElement("canvas"); c.width = 1600; c.height = 900; const x = c.getContext("2d"); x.fillStyle = color; x.fillRect(0, 0, 1600, 900); const r = indexedDB.open("jinxStablesMedia", 1); r.onsuccess = () => { const tx = r.result.transaction("screenshots", "readwrite"); const rec = { horseId: hid, full: c.toDataURL("image/jpeg", 0.85), thumb: c.toDataURL("image/jpeg", 0.5), addedDate: "2026-09-01" }; if (cloudV) rec.cloudV = cloudV; tx.objectStore("screenshots").put(rec); tx.oncomplete = () => res(); }; }), { hid: id, color, cloudV });
+const queueOf = (page) => page.evaluate((uid) => JSON.parse(localStorage.getItem("jinxStables.shotQueue.v1." + uid) || "{}"), UID);
 
 async function openHorse(page, name) {
   await cardFor(page, name).click();
@@ -199,147 +212,189 @@ async function openHorse(page, name) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: fs.existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined });
+  const exe = process.env.CHROMIUM_PATH || (fs.existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
+  const browser = await chromium.launch({ executablePath: exe });
   const imgPath = path.join(__dirname, "fixtures-tmp-horse.png");
-  // A realistic-size test picture: render a busy 1920x1080 page and capture it.
+  const img2Path = path.join(__dirname, "fixtures-tmp-horse2.png");
   const painter = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
-  await painter.setContent('<body style="margin:0;background:linear-gradient(45deg,#2a6,#c42,#24c,#ec4)">' + Array.from({ length: 400 }, (_, i) => `<span style="display:inline-block;width:48px;height:27px;background:hsl(${i * 37 % 360},70%,${30 + i % 40}%)"></span>`).join("") + "</body>");
-  fs.writeFileSync(imgPath, await painter.screenshot());
+  const paint = async (seed) => {
+    await painter.setContent('<body style="margin:0;background:linear-gradient(45deg,#2a6,#c42,#24c,#ec4)">' + Array.from({ length: 400 }, (_, i) => `<span style="display:inline-block;width:48px;height:27px;background:hsl(${(i * 37 + seed) % 360},70%,${30 + i % 40}%)"></span>`).join("") + "</body>");
+    return painter.screenshot();
+  };
+  fs.writeFileSync(imgPath, await paint(0));
+  fs.writeFileSync(img2Path, await paint(180));
 
   let pass = 0;
   const ok = (label) => { pass++; console.log("PASS  " + label); };
 
-  // 1. Device A adds a picture; it uploads and the pointer is set only after both files exist.
+  // 1. Device A adds a picture: versioned pair uploads, then the pointer names it.
   const A = await device(browser);
   await waitFor(() => A.locator(".card").count().then((n) => n === 3), "device A roster");
   await openHorse(A, "Cannoli");
   await A.setInputFiles("#screenshotFileInput", imgPath);
   await A.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   await A.click("#saveBtn");
-  await waitFor(() => row("h_one").data.screenshot && storage.has(`${UID}/h_one/full.jpg`), "upload + pointer");
-  const v1 = row("h_one").data.screenshot.v;
-  assert.ok(storage.has(`${UID}/h_one/thumb.jpg`));
-  const fullBytes = Buffer.from(storage.get(`${UID}/h_one/full.jpg`).b64, "base64");
-  assert.ok(fullBytes.length <= 500 * 1024, "full.jpg under 500 KB (" + fullBytes.length + ")");
-  const dims = await A.evaluate((b64) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.width, i.height]); i.src = "data:image/jpeg;base64," + b64; }), storage.get(`${UID}/h_one/full.jpg`).b64);
-  assert.ok(Math.max(...dims) <= 1280, "full.jpg capped at 1280 px (" + dims + ")");
-  const upOrder = storageLog.filter((l) => l.startsWith("upload")).map((l) => l.split("/").pop());
-  assert.deepEqual(upOrder.slice(0, 2), ["thumb.jpg", "full.jpg"]);
-  ok("device A upload: thumb then full, then pointer; 1280 px, " + Math.round(fullBytes.length / 1024) + " KB");
+  await waitFor(() => ptr("h_one") && filesOf("h_one").length === 2, "upload + pointer");
+  const v1 = ptr("h_one").v;
+  assert.deepEqual(filesOf("h_one"), pairOf(v1).sort(), "files are the pointer's version");
+  const fullBytes = Buffer.from(storage.get(`${UID}/h_one/${v1}-full.jpg`).b64, "base64");
+  assert.ok(fullBytes.length <= 500 * 1024, "full under 500 KB");
+  const dims = await A.evaluate((b64) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.width, i.height]); i.src = "data:image/jpeg;base64," + b64; }), storage.get(`${UID}/h_one/${v1}-full.jpg`).b64);
+  assert.ok(Math.max(...dims) <= 1280, "full capped at 1280 px");
+  const ups = storageLog.filter((l) => l.startsWith("upload")).map((l) => l.split("/").pop());
+  assert.deepEqual(ups.slice(0, 2), [`${v1}-thumb.jpg`, `${v1}-full.jpg`]);
+  ok("device A: thumb then full under one version, then pointer");
 
-  // 2. Device B (phone size) sees the badge, downloads the thumb on open, full on tap.
+  // 2. Device B (phone) shows the badge, downloads that version's thumb on open, full on tap.
   const B = await device(browser, { viewport: { width: 390, height: 844 } });
   await waitFor(() => B.locator(".card").count().then((n) => n === 3), "device B roster");
   await waitFor(() => cardFor(B, "Cannoli").locator(".badge.photo").count().then((n) => n === 1), "badge on B");
-  const dlBefore = storageLog.filter((l) => l.startsWith("download")).length;
+  const dl0 = storageLog.filter((l) => l.startsWith("download")).length;
   await openHorse(B, "Cannoli");
   await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
-  assert.equal(storageLog.filter((l) => l.startsWith("download")).length - dlBefore, 1, "only thumb downloaded on open");
+  const dls = storageLog.filter((l) => l.startsWith("download")).slice(dl0);
+  assert.deepEqual(dls.map((l) => l.split("/").pop()), [`${v1}-thumb.jpg`], "only the thumb on open");
   await B.click("#screenshotPreview");
   await B.waitForSelector(".shot-full-overlay img");
-  assert.ok(storageLog.slice(-1)[0].endsWith("full.jpg"), "full downloaded on tap");
-  const noScroll = await B.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
-  assert.ok(noScroll, "no horizontal scroll on phone");
-  await B.screenshot({ path: path.join(__dirname, "..", "..", "shot-e2e-phone-full.png") }).catch(() => {});
+  assert.ok(storageLog.slice(-1)[0].endsWith(`${v1}-full.jpg`), "full on tap");
+  assert.ok(await B.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "no horizontal scroll on phone");
   await B.click(".shot-full-overlay");
-  ok("device B: badge, thumb on open, full on tap, phone layout OK");
-
-  // 3. Soft delete keeps files; Restore brings the picture back.
   await B.click("#closeEditor");
-  await A.bringToFront();
+  ok("device B: badge, versioned thumb on open, full on tap, phone layout OK");
+
+  // 3. Replace on A: new version uploads, pointer moves, old version pruned only after the cloud confirms.
+  await openHorse(A, "Cannoli");
+  await A.waitForSelector("#screenshotPreviewWrap:not([hidden])");
+  await A.setInputFiles("#screenshotFileInput", img2Path);
+  await sleep(500);
+  await A.click("#saveBtn");
+  await waitFor(() => ptr("h_one") && ptr("h_one").v !== v1, "new pointer");
+  const v2 = ptr("h_one").v;
+  await waitFor(() => JSON.stringify(filesOf("h_one")) === JSON.stringify(pairOf(v2).sort()), "old version pruned");
+  const pruneAt = storageLog.findIndex((l) => l.startsWith("remove") && l.includes(v1));
+  assert.ok(pruneAt > 0, "old version removed");
+  await B.reload();
+  await waitFor(() => B.locator(".card").count().then((n) => n === 3), "B reload");
+  await openHorse(B, "Cannoli");
+  await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
+  assert.ok(storageLog.slice(-1)[0].endsWith(`${v2}-thumb.jpg`), "B fetched the new version");
+  await B.click("#closeEditor");
+  ok("replace: new version, pointer moved, old version pruned, other device updated");
+
+  // 4. Soft delete keeps files; Restore keeps the pointer.
   await openHorse(A, "Cannoli");
   await A.click("#deleteBtn");
   await A.fill("#deleteConfirmName", "Cannoli");
   await A.click("#deleteBtn");
   await waitFor(() => row("h_one").deleted_at != null, "soft delete synced");
-  await new Promise((r) => setTimeout(r, 1500));
-  assert.ok(storage.has(`${UID}/h_one/full.jpg`), "files kept after soft delete");
+  await sleep(1500);
+  assert.deepEqual(filesOf("h_one"), pairOf(v2).sort(), "files kept after soft delete");
   await A.evaluate(() => document.getElementById("recentlyDeletedBtn").click());
   await A.click("[data-restore-index]");
   await waitFor(() => row("h_one").deleted_at == null, "restored");
-  assert.equal(row("h_one").data.screenshot.v, v1, "pointer survives delete/restore");
+  assert.equal(ptr("h_one").v, v2);
   await A.evaluate(() => document.getElementById("mCancel").click());
   ok("soft delete keeps files; restore keeps pointer");
 
-  // 4. Remove on A: files deleted, pointer null; B clears its synced copy on refresh.
+  // 5. Remove on A: every version deleted, pointer null; B clears its synced copy.
   await openHorse(A, "Cannoli");
   await A.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   await A.click("#removeScreenshotBtn");
   await A.click("#saveBtn");
-  await waitFor(() => row("h_one").data.screenshot === null && !storage.has(`${UID}/h_one/full.jpg`) && !storage.has(`${UID}/h_one/thumb.jpg`), "remove synced");
+  await waitFor(() => ptr("h_one") === null && filesOf("h_one").length === 0, "remove synced");
   await B.reload();
   await waitFor(() => B.locator(".card").count().then((n) => n === 3), "B reload");
   await waitFor(() => cardFor(B, "Cannoli").locator(".badge.photo").count().then((n) => n === 0), "B badge cleared");
-  const bLocal = await B.evaluate(() => new Promise((res) => { const r = indexedDB.open("jinxStablesMedia", 1); r.onsuccess = () => { const g = r.result.transaction("screenshots").objectStore("screenshots").get("h_one"); g.onsuccess = () => res(!!g.result); }; }));
-  assert.equal(bLocal, false, "B's cached copy cleared");
-  ok("remove: files deleted, pointer null, other device cleared");
+  assert.equal(await localRec(B, "h_one"), null, "B's cached copy cleared");
+  ok("remove: all versions deleted, pointer null, other device cleared");
 
-  // 5. Storage not set up yet (SQL not applied): picture stays queued, no error banner, no pointer.
+  // 6. Storage not set up yet: queued quietly, uploads once available.
   bucketExists = false;
   await openHorse(A, "Taffy");
   await A.setInputFiles("#screenshotFileInput", imgPath);
   await A.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   await A.click("#saveBtn");
-  await new Promise((r) => setTimeout(r, 2500));
-  assert.equal(row("h_two").data.screenshot, undefined, "no pointer without storage");
-  const queued = await A.evaluate((uid) => JSON.parse(localStorage.getItem("jinxStables.shotQueue.v1." + uid) || "{}"), UID);
-  assert.equal(queued.h_two && queued.h_two.op, "upload", "stays queued");
-  assert.equal(await A.locator("#shotSyncBanner").isHidden(), true, "no alarming banner");
-  assert.equal(await cardFor(A, "Taffy").locator(".badge.photo").count(), 1, "local badge still shows");
+  await sleep(2500);
+  assert.equal(ptr("h_two"), undefined, "no pointer without storage");
+  assert.equal((await queueOf(A)).h_two.op, "upload", "stays queued");
+  assert.equal(await A.locator("#shotSyncBanner").isHidden(), true, "no banner");
   bucketExists = true;
   await A.reload();
-  await waitFor(() => row("h_two").data.screenshot && storage.has(`${UID}/h_two/full.jpg`), "queued upload sent after storage appears");
+  await waitFor(() => ptr("h_two") && filesOf("h_two").length === 2, "queued upload sent");
   ok("storage not ready: stays queued quietly, uploads once available");
 
-  // 6. Brand-new horse + picture: upload waits for the horse row.
+  // 7. Brand-new horse with a picture: horse row first, then files.
   await A.evaluate(() => document.getElementById("addBtn").click());
   await A.waitForSelector("#qaName");
   await A.fill("#qaName", "NorWaffer");
   await A.setInputFiles("#qaScreenshotFileInput", imgPath);
   await A.waitForSelector("#qaScreenshotPreviewWrap:not([hidden])");
   await A.click("#qaSaveBtn");
-  await waitFor(() => { const r = db.horses.find((h) => h.data && h.data.name === "NorWaffer"); return r && r.data.screenshot && storage.has(`${UID}/${r.id}/full.jpg`); }, "new horse upload");
-  const denied = storageLog.filter((l) => l.startsWith("upload")).length;
-  ok("new horse: row first, then picture (" + denied + " uploads total, none refused)");
+  await waitFor(() => { const r = db.horses.find((h) => h.data && h.data.name === "NorWaffer"); return r && r.data.screenshot && filesOf(r.id).length === 2; }, "new horse upload");
+  ok("new horse: row first, then picture");
 
-  // 7. One-time offer for a picture that existed on a device before sync.
+  // 8. Permanent failure never loses the local picture to an older cloud copy (Codex finding 2).
+  const cloudV2 = ptr("h_two").v;
+  await putLocal(A, "h_two", "#ff00aa", null); // a replacement picture, not yet uploaded
+  await A.evaluate(({ uid }) => localStorage.setItem("jinxStables.shotQueue.v1." + uid, JSON.stringify({ h_two: { op: "upload", v: "fixrepl1", attempts: 11, nextAt: 0 } })), { uid: UID });
+  forceServerError = true;
+  await A.reload();
+  await A.waitForSelector("#shotSyncBanner:not([hidden])", { timeout: 15000 });
+  assert.match(await A.locator("#shotSyncBannerText").innerText(), /Taffy.*after several tries.*won’t be replaced/);
+  assert.equal((await queueOf(A)).h_two.failed, "gaveup", "failed marker kept");
+  const dlBeforeOpen = storageLog.filter((l) => l.startsWith("download")).length;
+  await openHorse(A, "Taffy");
+  await A.waitForSelector("#screenshotSyncState:not([hidden])");
+  await sleep(800);
+  assert.equal(storageLog.filter((l) => l.startsWith("download")).length, dlBeforeOpen, "no cloud download over the local picture");
+  const kept = await localRec(A, "h_two");
+  assert.ok(kept && !kept.cloudV && kept.full, "local replacement still there");
+  assert.equal(ptr("h_two").v, cloudV2, "cloud pointer untouched");
+  forceServerError = false;
+  await A.click("#shotRetryBtn");
+  await waitFor(() => ptr("h_two").v === "fixrepl1" && JSON.stringify(filesOf("h_two")) === JSON.stringify(pairOf("fixrepl1").sort()), "retry uploads and prunes");
+  await A.click("#closeEditor");
+  ok("permanent failure: marked, local picture protected, Try again uploads");
+
+  // 9. One-time offer for a picture that existed on a device before sync.
   const C = await device(browser);
   await waitFor(() => C.locator(".card").count().then((n) => n === 4), "device C roster");
-  await C.evaluate(() => new Promise((res) => { const r = indexedDB.open("jinxStablesMedia", 1); r.onsuccess = () => { const tx = r.result.transaction("screenshots", "readwrite"); const c = document.createElement("canvas"); c.width = 1600; c.height = 900; const x = c.getContext("2d"); x.fillStyle = "#b85"; x.fillRect(0, 0, 1600, 900); tx.objectStore("screenshots").put({ horseId: "h_three", full: c.toDataURL("image/jpeg", 0.85), thumb: c.toDataURL("image/jpeg", 0.5), addedDate: "2026-09-01" }); tx.oncomplete = () => res(); }; }));
+  await putLocal(C, "h_three", "#bb8855", null);
   await C.reload();
   await C.waitForSelector("#shotOfferUpload", { timeout: 15000 });
   assert.match(await C.locator("#modalBox").innerText(), /Upload 1 screenshot from this device/);
   await C.click("#shotOfferUpload");
-  await waitFor(() => row("h_three").data.screenshot && storage.has(`${UID}/h_three/full.jpg`), "offered upload");
+  await waitFor(() => ptr("h_three") && filesOf("h_three").length === 2, "offered upload");
   await C.reload();
-  await new Promise((r) => setTimeout(r, 3000));
+  await sleep(3000);
   assert.equal(await C.locator("#shotOfferUpload").count(), 0, "offer is one-time");
   ok("one-time offer: asks once, uploads only on yes");
 
-  // 8. Orphan cleanup: purged horse's old files go; unknown-but-new files stay.
+  // 10. Cleanup with more than 1,000 horses (Codex finding 1): paginated, nothing valid deleted.
   const old = "2026-08-01T00:00:00.000Z";
-  storage.set(`${UID}/h_purged/full.jpg`, { b64: "AA==", type: "image/jpeg", updated_at: old });
-  storage.set(`${UID}/h_purged/thumb.jpg`, { b64: "AA==", type: "image/jpeg", updated_at: old });
-  storage.set(`${UID}/h_brandnew/full.jpg`, { b64: "AA==", type: "image/jpeg", updated_at: now() });
+  for (let i = 0; i < 1100; i++) db.horses.push(makeRow("x" + String(i).padStart(4, "0"), "Filler " + i));
+  const late = makeRow("zz_late", "LateHorse");
+  late.data.screenshot = { v: "latev1" };
+  db.horses.push(late); // sorts after 1,100 fillers: only visible on page 2
+  const put = (p, iso) => storage.set(`${UID}/${p}`, { b64: "AA==", type: "image/jpeg", updated_at: iso });
+  put("zz_late/latev1-full.jpg", old); put("zz_late/latev1-thumb.jpg", old);
+  put("zz_late/stale0-full.jpg", old);                 // older version of a known horse: goes
+  put("h_purged/old1-full.jpg", old); put("h_purged/old1-thumb.jpg", old);
+  put("h_brandnew/n1-full.jpg", now());                // unknown but fresh: stays
+  put("h_three/stale9-full.jpg", now());               // non-current but fresh: stays
+  rangeLog.length = 0;
   const D = await device(browser);
-  await waitFor(() => !storage.has(`${UID}/h_purged/full.jpg`), "orphan removed", 25000);
-  assert.ok(!storage.has(`${UID}/h_purged/thumb.jpg`));
-  assert.ok(storage.has(`${UID}/h_brandnew/full.jpg`), "new unknown folder kept");
-  assert.ok(storage.has(`${UID}/h_two/full.jpg`) && storage.has(`${UID}/h_three/full.jpg`), "live horses kept");
-  ok("orphan cleanup: purged removed, fresh and live kept");
+  await waitFor(() => !storage.has(`${UID}/h_purged/old1-full.jpg`), "orphan removed", 25000);
+  await sleep(500);
+  assert.deepEqual(filesOf("zz_late"), pairOf("latev1").sort(), "page-2 horse kept, its stale version removed");
+  assert.ok(rangeLog.includes("0-999") && rangeLog.includes("1000-1999"), "horse ids paged with range(): " + rangeLog.join(","));
+  assert.ok(storage.has(`${UID}/h_brandnew/n1-full.jpg`), "fresh unknown folder kept");
+  assert.ok(storage.has(`${UID}/h_three/stale9-full.jpg`), "fresh non-current version kept");
+  assert.equal(filesOf("h_two").length, 2, "live horses kept");
+  db.horses = db.horses.filter((h) => !/^x\d{4}$/.test(h.id) && h.id !== "zz_late");
+  ok("cleanup: pages past 1,000 rows, keeps valid files, removes orphans and stale versions");
 
-  // 8b. Retry ceiling: a picture that keeps failing stops after 12 server errors.
-  forceServerError = true;
-  await A.evaluate((uid) => localStorage.setItem("jinxStables.shotQueue.v1." + uid, JSON.stringify({ h_two: { op: "upload", v: "2026-09-27T09:00:00.000Z", attempts: 11, nextAt: 0 } })), UID);
-  await A.reload();
-  await A.waitForSelector("#shotSyncBanner:not([hidden])", { timeout: 15000 });
-  assert.match(await A.locator("#shotSyncBannerText").innerText(), /Taffy.*after several tries/);
-  const leftover = await A.evaluate((uid) => localStorage.getItem("jinxStables.shotQueue.v1." + uid), UID);
-  assert.equal(leftover, null, "gave-up entry removed from the queue");
-  forceServerError = false;
-  ok("retry ceiling: gives up after 12 failures and tells the user");
-
-  // 9. Guest mode: pictures stay on the device; no storage calls at all.
+  // 11. Guest mode: device only, no storage calls.
   const before = storageLog.length;
   const G = await device(browser, { guest: true });
   await G.waitForSelector("#launchSample");
@@ -350,14 +405,14 @@ async function openHorse(page, name) {
   await G.setInputFiles("#qaScreenshotFileInput", imgPath);
   await G.waitForSelector("#qaScreenshotPreviewWrap:not([hidden])");
   await G.click("#qaSaveBtn");
-  await new Promise((r) => setTimeout(r, 2000));
+  await sleep(2000);
   assert.equal(storageLog.length, before, "guest never calls storage");
   assert.equal(await cardFor(G, "GuestHorse").locator(".badge.photo").count(), 1);
   ok("guest mode: device only, no storage calls");
 
   for (const p of [A, B, C, D, G]) assert.deepEqual(p.errors, [], "no page errors");
   ok("no page errors on any device");
-  fs.unlinkSync(imgPath);
+  fs.unlinkSync(imgPath); fs.unlinkSync(img2Path);
   await browser.close();
   console.log(`screenshot sync e2e: ${pass} passed`);
 })().catch((e) => { console.error(e); process.exit(1); });
