@@ -42,6 +42,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch Step 2 completed: `https://jinxsstables.com` and `https://www.jinxsstables.com` are included in `CLOUD_ALLOWED_ORIGINS`, ready for the later custom-domain connection.
 - Launch Step 3 approved for production: Renee tested the preview on phone and desktop, and both exported workbooks matched exactly at 77 horses, 67 columns, and identical cell contents.
 - Launch Step 3 completed: `main` was fast-forwarded to the approved release at `b3175a8`. Production displayed the current welcome screen and Discord sign-in, and Renee confirmed the signed-in production stable on both phone and desktop with 77 total horses.
+- Launch Step 4, Cloudflare apex completed: with Renee's approval, `jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
@@ -53,9 +54,13 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Connect `jinxsstables.com` (double **s**) after production is confirmed, with Renee’s approval for each Cloudflare and Supabase step.
+1. Complete the remaining custom-domain steps, each with Renee's separate approval: connect `www.jinxsstables.com`, then update the Supabase Site URL and allowed redirect URLs while retaining the workers.dev entries.
 2. Add screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
 3. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+
+## Backlog
+
+- Prevent iOS from offering “AutoFill Contact” on the horse Name field: add `autocomplete="off"` and a non-person `name`/`id` hint so Safari does not interpret it as a person's name.
 
 ## Tester invite note
 
