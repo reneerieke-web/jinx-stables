@@ -223,6 +223,10 @@
   .field label.fb-choice:hover{background:var(--panel-raised);}
   .field .fb-choice input{flex:0 0 auto; width:18px; height:18px; margin:0; padding:0; accent-color:var(--gold);}
   .fb-choice span{min-width:0; overflow-wrap:anywhere;}
+  .fb-shot{align-items:flex-start; gap:12px; flex-wrap:wrap;}
+  .fb-shot:not([hidden]){display:flex;}
+  .fb-shot img{display:block; max-width:min(160px, 100%); max-height:160px; border-radius:8px; border:1px solid var(--border); object-fit:contain; background:var(--ink);}
+  .fb-shot-actions{display:flex; gap:8px; flex-wrap:wrap;}
   .two-col{grid-template-columns:1fr 1fr; gap:14px;}
   .two-col:not([hidden]){display:grid;}
   .stepper{display:flex; align-items:center; gap:12px;}
@@ -4449,8 +4453,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(host.indexOf("cloud-sync-preview") === 0) return "preview";
     return "other";
   }
-  function feedbackPayload(category, message, doing, env){
-    return {
+  // shot (optional): { id } when a screenshot will be uploaded for this
+  // report. Only then are id/has_screenshot sent, so text-only feedback keeps
+  // the exact columns of the original feedback grant.
+  function feedbackPayload(category, message, doing, env, shot){
+    var p = {
       category: category,
       message: String(message || "").trim().slice(0, 4000),
       doing: String(doing || "").trim().slice(0, 1000) || null,
@@ -4459,8 +4466,51 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       user_agent: String(env.ua || "").slice(0, 512) || null,
       viewport: String(env.viewport || "").slice(0, 32) || null
     };
+    if(shot && shot.id){ p.id = shot.id; p.has_screenshot = true; }
+    return p;
   }
-  var FEEDBACK_BUILD = "screenshot-sync+feedback";
+  // Feedback screenshots: private bucket, one JPEG per report, uploaded to
+  // {user id}/{report id}.jpg after the report row is saved (see
+  // supabase/review/20260927_feedback_screenshots.sql). Users can upload
+  // but never read, replace, or delete them.
+  var FEEDBACK_SHOT_BUCKET = "feedback-screenshots";
+  var FEEDBACK_SHOT_MAX = 1600;               // longest side, px
+  var FEEDBACK_SHOT_TARGET = 700 * 1024;      // compression goal
+  var FEEDBACK_SHOT_HARD = 800 * 1024;        // bucket file_size_limit
+  function feedbackNewId(cryptoObj){
+    if(cryptoObj && typeof cryptoObj.randomUUID === "function") return cryptoObj.randomUUID();
+    var b = new Uint8Array(16);
+    cryptoObj.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.prototype.map.call(b, function(x){ return (x + 0x100).toString(16).slice(1); }).join("");
+    return h.slice(0,8) + "-" + h.slice(8,12) + "-" + h.slice(12,16) + "-" + h.slice(16,20) + "-" + h.slice(20);
+  }
+  function feedbackShotPath(userId, reportId){ return String(userId) + "/" + String(reportId) + ".jpg"; }
+  // An upload counts as done when it succeeded or the file is already there
+  // (an earlier attempt landed but its response was lost).
+  function feedbackShotUploadDone(res){
+    if(!res || !res.error) return true;
+    var e = res.error;
+    return String(e.statusCode || e.status || "") === "409" || /already exists|duplicate/i.test(String(e.message || ""));
+  }
+  // True when the database does not accept the screenshot columns yet (the
+  // screenshot SQL has not been applied), so the text can be sent without it.
+  function feedbackShotUnsupported(err){
+    return !!err && (String(err.code || "") === "42501" || /permission denied|column .*does not exist|schema cache/i.test(String(err.message || "")));
+  }
+  var FEEDBACK_BUILD = "screenshot-sync+feedback-shots";
+  function compressFeedbackShot(dataUrl){
+    var qualities = [0.82, 0.72, 0.62, 0.52];
+    function attempt(i){
+      return downscaleImage(dataUrl, FEEDBACK_SHOT_MAX, qualities[i]).then(function(out){
+        if(dataUrlByteLength(out) <= FEEDBACK_SHOT_TARGET) return out;
+        if(i < qualities.length - 1) return attempt(i + 1);
+        if(dataUrlByteLength(out) <= FEEDBACK_SHOT_HARD) return out;
+        throw new Error("too large");
+      });
+    }
+    return attempt(0);
+  }
   function openFeedbackModal(){
     if(!cloudReady || !cloudClient || !cloudUserId){
       modalBox.innerHTML = '<h2>Send feedback</h2><div class="modal-note">Sign in with Discord to send feedback from here, or message Renee on Discord.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
@@ -4476,31 +4526,109 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       '<div class="field"><label id="fbCatLabel">What kind of feedback is this?</label><div class="fb-choices" role="radiogroup" aria-labelledby="fbCatLabel">' + opts + '</div></div>' +
       '<div class="field"><label for="fbMessage">Tell us what happened or what you\'re thinking</label><textarea id="fbMessage" rows="5" maxlength="4000"></textarea></div>' +
       '<div class="field"><label for="fbDoing">What were you doing when you noticed it? <span class="hint">optional</span></label><textarea id="fbDoing" rows="2" maxlength="1000"></textarea></div>' +
-      '<div class="modal-note">Your device and browser type are included automatically. Your report is linked to your account so Renee can follow up, and other users can never see it. Want to add a screenshot? Send it to Renee on Discord.</div>' +
+      '<div class="field"><label for="fbShotAdd">Screenshot <span class="hint">optional</span></label>' +
+        '<input type="file" id="fbShotInput" accept="image/*" hidden>' +
+        '<div id="fbShotEmpty"><button type="button" class="btn small" id="fbShotAdd">📷 Add screenshot</button></div>' +
+        '<div id="fbShotPreview" class="fb-shot" hidden><img id="fbShotImg" alt="Screenshot to send with this report">' +
+          '<div class="fb-shot-actions"><button type="button" class="btn small" id="fbShotReplace">Replace</button><button type="button" class="btn small danger" id="fbShotRemove">Remove</button></div></div>' +
+        '<div id="fbShotError" class="modal-note" style="color:var(--danger);" hidden></div>' +
+      '</div>' +
+      '<div class="modal-note">You can attach a screenshot right here. Your device and browser type are included automatically. Your report and screenshot are linked to your account so Renee can follow up, and other users can never see them.</div>' +
       '<div id="fbError" class="modal-note" style="color:var(--danger);" hidden></div>' +
       '<div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn primary" id="fbSend">Send feedback</button></div>';
     modalBackdrop.hidden = false;
     el("mCancel").addEventListener("click", closeModal);
     el("fbMessage").focus();
+
+    // Optional screenshot, compressed on the device before it is kept.
+    var fbShot = null; // JPEG data URL
+    var shotBusy = false;
+    function showShotError(msg){ var box = el("fbShotError"); box.textContent = msg; box.hidden = !msg; }
+    function renderShot(){
+      el("fbShotEmpty").hidden = !!fbShot;
+      el("fbShotPreview").hidden = !fbShot;
+      if(fbShot) el("fbShotImg").src = fbShot; else el("fbShotImg").removeAttribute("src");
+    }
+    function pickShot(){ if(!shotBusy){ el("fbShotInput").value = ""; el("fbShotInput").click(); } }
+    el("fbShotAdd").addEventListener("click", pickShot);
+    el("fbShotReplace").addEventListener("click", pickShot);
+    el("fbShotRemove").addEventListener("click", function(){ fbShot = null; showShotError(""); renderShot(); });
+    el("fbShotInput").addEventListener("change", function(){
+      var file = this.files && this.files[0];
+      if(!file) return;
+      showShotError("");
+      if(file.type && !/^image\//i.test(file.type)){ showShotError("Please choose an image."); return; }
+      shotBusy = true; el("fbSend").disabled = true;
+      el("fbShotAdd").textContent = "Preparing…";
+      var reader = new FileReader();
+      function done(){ shotBusy = false; el("fbSend").disabled = false; el("fbShotAdd").textContent = "📷 Add screenshot"; renderShot(); }
+      reader.onload = function(){
+        compressFeedbackShot(reader.result).then(function(out){ fbShot = out; done(); })
+          .catch(function(e){ showShotError(e && e.message === "too large" ? "That picture is too large to attach, even after shrinking it. Try a smaller screenshot." : SHOT_UNREADABLE_MSG); done(); });
+      };
+      reader.onerror = function(){ showShotError(SHOT_UNREADABLE_MSG); done(); };
+      reader.readAsDataURL(file);
+    });
+
+    function uploadShot(reportId, dataUrl){
+      return cloudClient.storage.from(FEEDBACK_SHOT_BUCKET)
+        .upload(feedbackShotPath(cloudUserId, reportId), dataUrlToBlob(dataUrl), { upsert: false, contentType: "image/jpeg", cacheControl: "3600" })
+        .then(feedbackShotUploadDone, function(){ return false; });
+    }
+    function showThanks(note){
+      modalBox.innerHTML = '<h2>Thank you! 🐴</h2><div class="modal-note">' + esc(note) + '</div><div class="modal-actions"><button class="btn primary" id="mCancel">Close</button></div>';
+      el("mCancel").addEventListener("click", closeModal);
+    }
+    // The written report is already saved; only the picture is missing.
+    function showShotRetry(reportId, dataUrl, tries){
+      modalBox.innerHTML = '<h2>Feedback sent ✓</h2>' +
+        '<div class="modal-note">Your written feedback was saved. The screenshot didn\'t upload' + (tries > 1 ? ' again' : '') + '.</div>' +
+        '<div class="modal-note">' + (tries > 1 ? 'You can keep trying for about an hour, or send the picture to Renee on Discord.' : 'Check your connection and try again.') + '</div>' +
+        '<div class="modal-actions"><button class="btn" id="mCancel">Close without screenshot</button><button class="btn primary" id="fbShotRetry">Try again</button></div>';
+      el("mCancel").addEventListener("click", closeModal);
+      el("fbShotRetry").addEventListener("click", async function(){
+        this.disabled = true; this.textContent = "Uploading…";
+        if(await uploadShot(reportId, dataUrl)) showThanks("Your feedback and screenshot were sent.");
+        else showShotRetry(reportId, dataUrl, tries + 1);
+      });
+    }
+
     el("fbSend").addEventListener("click", async function(){
       var btn = this;
+      if(shotBusy) return;
       var picked = modalBox.querySelector('input[name="fbCat"]:checked');
-      var payload = feedbackPayload(picked ? picked.value : "bug", el("fbMessage").value, el("fbDoing").value, {
+      var env = {
         host: window.location.hostname, build: FEEDBACK_BUILD, ua: navigator.userAgent,
         viewport: window.innerWidth + "x" + window.innerHeight
-      });
+      };
+      var shot = fbShot;
+      var reportId = shot ? feedbackNewId(window.crypto) : null;
+      var payload = feedbackPayload(picked ? picked.value : "bug", el("fbMessage").value, el("fbDoing").value, env, shot ? { id: reportId } : null);
       var err = el("fbError");
       if(!payload.message){ err.textContent = "Please write a little about it first."; err.hidden = false; el("fbMessage").focus(); return; }
       btn.disabled = true; btn.textContent = "Sending…"; err.hidden = true;
       try{
         // No .select(): users cannot read feedback back, only insert it.
+        // The text is saved first so a failed picture never loses it.
         var res = await cloudClient.from("feedback").insert(payload);
+        if(res.error && shot && feedbackShotUnsupported(res.error)){
+          // Screenshots are not switched on in the database yet: send the text alone.
+          var plain = feedbackPayload(payload.category, payload.message, payload.doing, env, null);
+          res = await cloudClient.from("feedback").insert(plain);
+          if(res.error) throw res.error;
+          showThanks("Your feedback was sent. Screenshots can't be attached yet, so please send the picture to Renee on Discord.");
+          return;
+        }
         if(res.error) throw res.error;
-        modalBox.innerHTML = '<h2>Thank you! 🐴</h2><div class="modal-note">Your feedback was sent.</div><div class="modal-actions"><button class="btn primary" id="mCancel">Close</button></div>';
-        el("mCancel").addEventListener("click", closeModal);
+        if(!shot){ showThanks("Your feedback was sent."); return; }
+        btn.textContent = "Uploading screenshot…";
+        if(await uploadShot(reportId, shot)) showThanks("Your feedback and screenshot were sent.");
+        else showShotRetry(reportId, shot, 1);
       }catch(e){
         var msg = String((e && e.message) || "");
-        err.textContent = /limit reached/i.test(msg)
+        err.textContent = /screenshot limit/i.test(msg)
+          ? "You've attached the most screenshots allowed today. Remove the screenshot to send this report, or send the picture to Renee on Discord."
+          : /limit reached/i.test(msg)
           ? "You've sent a lot of feedback today, thank you! Please message Renee on Discord for anything else today."
           : "Feedback couldn't be sent right now. Please try again, or message Renee on Discord.";
         err.hidden = false;

@@ -17,7 +17,7 @@ t ok   $B "B submits feedback"                              "$(ins)"
 t deny $A "A files feedback as B (user_id)"                 "$(ins ", user_id" ", '$B'")"
 t deny $A "A sets status (pre-triage)"                      "$(ins ", status" ", 'done'")"
 t deny $A "A sets created_at"                               "$(ins ", created_at" ", '2020-01-01'")"
-t deny $A "A sets id"                                       "$(ins ", id" ", gen_random_uuid()")"
+t ok   $A "A sets its own report id (names the screenshot file)" "$(ins ", id" ", gen_random_uuid()")"
 t deny $A "A reads any feedback"                            "select count(*) from public.feedback"
 t deny $A "A reads own feedback"                            "select count(*) from public.feedback where user_id='$A'"
 t deny $A "A edits B's feedback"                            "with x as (update public.feedback set message='x' returning 1) select count(*) from x"
@@ -31,7 +31,7 @@ t deny $A "user_agent over 512"                             "$(ins ", user_agent
 t deny anon "anon submits"                                  "$(ins)"
 t deny anon "anon reads"                                    "select count(*) from public.feedback"
 t deny $A "A calls rate-limit function directly"            "select public.enforce_feedback_rate_limit()"
-for i in $(seq 1 19); do $P -c "begin; set role authenticated; set request.jwt.claim.sub='$A'; $(ins); commit;" >/dev/null; done
+for i in $(seq 1 18); do $P -c "begin; set role authenticated; set request.jwt.claim.sub='$A'; $(ins); commit;" >/dev/null; done
 echo "   A rows now: $($P -c "select count(*) from public.feedback where user_id='$A'")"
 t deny $A "21st report in 24h refused (rate limit)"         "$(ins)"
 t ok   $B "B unaffected by A's limit"                       "$(ins)"

@@ -39,8 +39,14 @@ const db = {
 };
 const storage = new Map(); // path -> {b64, type, updated_at}
 let bucketExists = true;
+// Feedback screenshots (supabase/review/20260927_feedback_screenshots.sql).
+let feedbackShotsSql = true;      // false = SQL not applied yet (old column grant)
+let feedbackShotFail = false;     // force the picture upload to fail
+const feedbackFiles = new Map();  // path -> {bytes, type}
+const feedbackOps = [];
 let forceServerError = false;
 const storageLog = [];
+const guestStorageCalls = []; // storage calls made by guest pages only
 const edgeCache = new Map();
 const rangeLog = [];
 let stamp = 0;
@@ -85,10 +91,14 @@ function runQuery(spec) {
   if (spec.kind === "insert") {
     if (spec.table === "feedback") {
       // Mirrors supabase/review/20260927_feedback.sql: insert-only, content columns only, no read-back.
-      const allowed = ["category", "message", "doing", "site", "app_build", "user_agent", "viewport"];
+      const allowed = ["category", "message", "doing", "site", "app_build", "user_agent", "viewport"].concat(feedbackShotsSql ? ["id", "has_screenshot"] : []);
       if (Object.keys(spec.payload).some((k) => !allowed.includes(k))) return { data: null, error: { code: "42501", message: "permission denied for table feedback" } };
       if (spec.columns) return { data: null, error: { code: "42501", message: "permission denied for table feedback" } };
-      rows.push({ ...spec.payload, user_id: UID, status: "new" });
+      const id = spec.payload.id || ("gen-" + rows.length);
+      if (rows.some((r) => r.id === id)) return { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint \"feedback_pkey\"" } };
+      const has = !!spec.payload.has_screenshot;
+      if (has && rows.filter((r) => r.has_screenshot).length >= 5) return { data: null, error: { code: "P0001", message: "Feedback screenshot limit reached: at most 5 screenshots per day." } };
+      rows.push({ ...spec.payload, id, has_screenshot: has, screenshot_path: has ? `${UID}/${id}.jpg` : null, user_id: UID, status: "new" });
       return { data: null, error: null };
     }
     rows.push({ ...spec.payload }); return { data: spec.payload, error: null };
@@ -96,7 +106,23 @@ function runQuery(spec) {
   return { data: null, error: { message: "unsupported" } };
 }
 
+function feedbackStorageOp(op, a) {
+  feedbackOps.push(op + " " + (a.path || ""));
+  if (op !== "upload") return { data: null, error: { statusCode: "403", message: "new row violates row-level security policy" } };
+  if (!feedbackShotsSql) return { data: null, error: { statusCode: "404", message: "Bucket not found" } };
+  if (feedbackShotFail) return { data: null, error: { statusCode: "500", message: "Internal Server Error" } };
+  const fb = db.feedback.find((r) => r.has_screenshot && r.screenshot_path === a.path && r.user_id === UID);
+  if (!fb || !a.path.startsWith(UID + "/")) return { data: null, error: { statusCode: "403", message: "new row violates row-level security policy" } };
+  if (feedbackFiles.has(a.path)) return { data: null, error: { statusCode: "409", message: "The resource already exists" } };
+  if (a.type !== "image/jpeg") return { data: null, error: { statusCode: "415", message: "mime type not supported" } };
+  const bytes = Buffer.from(a.b64, "base64");
+  if (bytes.length > 800 * 1024) return { data: null, error: { statusCode: "413", message: "The object exceeded the maximum allowed size" } };
+  feedbackFiles.set(a.path, { bytes, type: a.type });
+  return { data: { path: a.path }, error: null };
+}
+
 function storageOp(op, a) {
+  if (a.bucket === "feedback-screenshots") return feedbackStorageOp(op, a);
   storageLog.push(op + " " + (a.path || (a.paths || []).join(",") || a.prefix || ""));
   if (!bucketExists) return { data: null, error: { statusCode: "404", message: "Bucket not found" } };
   if (op === "upload" && forceServerError) return { data: null, error: { statusCode: "500", message: "Internal Server Error" } };
@@ -176,11 +202,11 @@ const FAKE_CLIENT = `
       signInWithOAuth: function(){ return Promise.resolve({ error: null }); }
     },
     from: builder,
-    storage: { from: function(){ return {
-      upload: function(path, blob, opts){ return blobToB64(blob).then(function(b64){ return window.__fakeStorage("upload", JSON.stringify({ path: path, b64: b64, type: (opts && opts.contentType) || blob.type })); }).then(JSON.parse); },
-      download: function(path, opts){ return window.__fakeStorage("download", JSON.stringify({ path: path, cacheNonce: opts && opts.cacheNonce != null ? String(opts.cacheNonce) : null })).then(JSON.parse).then(function(r){ return r.error ? r : { data: b64ToBlob(r.data.b64, r.data.type), error: null }; }); },
-      remove: function(paths){ return window.__fakeStorage("remove", JSON.stringify({ paths: paths })).then(JSON.parse); },
-      list: function(prefix){ return window.__fakeStorage("list", JSON.stringify({ prefix: prefix })).then(JSON.parse); }
+    storage: { from: function(bucket){ return {
+      upload: function(path, blob, opts){ return blobToB64(blob).then(function(b64){ return window.__fakeStorage("upload", JSON.stringify({ bucket: bucket, path: path, b64: b64, type: (opts && opts.contentType) || blob.type, upsert: !!(opts && opts.upsert) })); }).then(JSON.parse); },
+      download: function(path, opts){ return window.__fakeStorage("download", JSON.stringify({ bucket: bucket, path: path, cacheNonce: opts && opts.cacheNonce != null ? String(opts.cacheNonce) : null })).then(JSON.parse).then(function(r){ return r.error ? r : { data: b64ToBlob(r.data.b64, r.data.type), error: null }; }); },
+      remove: function(paths){ return window.__fakeStorage("remove", JSON.stringify({ bucket: bucket, paths: paths })).then(JSON.parse); },
+      list: function(prefix){ return window.__fakeStorage("list", JSON.stringify({ bucket: bucket, prefix: prefix })).then(JSON.parse); }
     }; } }
   }; } };
 })();
@@ -194,7 +220,7 @@ async function device(browser, opts = {}) {
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 900 } });
   if (opts.guest) await ctx.addInitScript(() => { window.__guest = true; });
   await ctx.exposeBinding("__fakeDb", (_s, spec) => JSON.stringify(runQuery(JSON.parse(spec))));
-  await ctx.exposeBinding("__fakeStorage", (_s, op, a) => JSON.stringify(storageOp(op, JSON.parse(a))));
+  await ctx.exposeBinding("__fakeStorage", (_s, op, a) => { if (opts.guest) guestStorageCalls.push(op); return JSON.stringify(storageOp(op, JSON.parse(a))); });
   await ctx.route(ORIGIN + "/**", (route) => {
     const u = new URL(route.request().url());
     if (u.pathname === "/" || u.pathname === "/index.html") return route.fulfill({ contentType: "text/html", body: html });
@@ -447,6 +473,83 @@ async function openHorse(page, name) {
   await A.click("#mCancel");
   ok("feedback: sent with category, text and device context; insert-only");
 
+  // 10c. Feedback with a screenshot: compressed on device, text saved first,
+  // then one JPEG at {uid}/{report id}.jpg. Big 3200x2000 PNG input.
+  const bigPng = path.join(__dirname, "fixtures-tmp-feedback.png");
+  const bigPainter = await (await browser.newContext({ viewport: { width: 3200, height: 2000 } })).newPage();
+  await bigPainter.setContent('<body style="margin:0;background:linear-gradient(135deg,#123,#c42,#2c6,#fd4)">' + Array.from({ length: 2000 }, (_, i) => `<span style="display:inline-block;width:64px;height:40px;background:hsl(${(i * 53) % 360},80%,${25 + i % 50}%)"></span>`).join("") + "</body>");
+  fs.writeFileSync(bigPng, await bigPainter.screenshot());
+  await bigPainter.close();
+  const openFb = async () => { await A.evaluate(() => document.getElementById("feedbackBtn").click()); await A.waitForSelector("#fbMessage"); };
+  await openFb();
+  assert.ok(await A.isVisible("#fbShotAdd"), "Add screenshot button shown");
+  assert.equal(await A.isVisible("#fbShotPreview"), false);
+  assert.ok(/attach a screenshot right here/.test(await A.textContent("#modalBox")), "new wording");
+  assert.ok(!/Send it to Renee on Discord/.test(await A.textContent("#modalBox")), "old Discord wording gone");
+  await A.setInputFiles("#fbShotInput", bigPng);
+  await A.waitForSelector("#fbShotPreview:not([hidden])");
+  await A.click("#fbShotRemove");
+  assert.equal(await A.isVisible("#fbShotPreview"), false, "Remove clears the preview");
+  assert.ok(await A.isVisible("#fbShotAdd"));
+  await A.setInputFiles("#fbShotInput", imgPath);
+  await A.waitForSelector("#fbShotPreview:not([hidden])");
+  await A.setInputFiles("#fbShotInput", bigPng); // Replace
+  await A.waitForFunction(() => /^data:image\/jpeg/.test(document.getElementById("fbShotImg").src));
+  await A.fill("#fbMessage", "The level buttons overlap on my phone");
+  await A.click("#fbSend");
+  await A.waitForSelector("text=Your feedback and screenshot were sent.");
+  const fbShotRow = db.feedback[db.feedback.length - 1];
+  assert.equal(fbShotRow.has_screenshot, true);
+  assert.match(fbShotRow.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  const shotFile = feedbackFiles.get(`${UID}/${fbShotRow.id}.jpg`);
+  assert.ok(shotFile, "picture stored at {uid}/{report id}.jpg");
+  assert.equal(shotFile.type, "image/jpeg");
+  assert.equal(shotFile.bytes[0], 0xff, "JPEG bytes");
+  assert.ok(shotFile.bytes.length <= 800 * 1024, "within the 800 KB bucket limit: " + shotFile.bytes.length);
+  assert.ok(!("screenshot" in fbShotRow) && !JSON.stringify(fbShotRow).includes("base64"), "no image data in the feedback row");
+  await A.click("#mCancel");
+  ok(`feedback screenshot: add/remove/replace, compressed (${Math.round(shotFile.bytes.length / 1024)} KB JPEG), stored by report id`);
+
+  // 10d. Upload fails: the text is kept, Try again finishes the picture.
+  feedbackShotFail = true;
+  await openFb();
+  await A.setInputFiles("#fbShotInput", imgPath);
+  await A.waitForSelector("#fbShotPreview:not([hidden])");
+  await A.fill("#fbMessage", "Picture upload will fail first");
+  await A.click("#fbSend");
+  await A.waitForSelector("text=Your written feedback was saved.");
+  const failedRow = db.feedback[db.feedback.length - 1];
+  assert.equal(failedRow.message, "Picture upload will fail first", "text saved despite the failed picture");
+  assert.equal(feedbackFiles.has(`${UID}/${failedRow.id}.jpg`), false);
+  await A.click("#fbShotRetry");
+  await A.waitForSelector("text=You can keep trying for about an hour");
+  feedbackShotFail = false;
+  await A.click("#fbShotRetry");
+  await A.waitForSelector("text=Your feedback and screenshot were sent.");
+  assert.ok(feedbackFiles.has(`${UID}/${failedRow.id}.jpg`), "retry stored the picture for the same report");
+  assert.equal(db.feedback.filter((r) => r.message === "Picture upload will fail first").length, 1, "no duplicate report on retry");
+  await A.click("#mCancel");
+  ok("feedback screenshot failure: text kept, Try again uploads to the same report");
+
+  // 10e. SQL not applied yet: text still goes through, user told to use Discord.
+  feedbackShotsSql = false;
+  const beforeRows = db.feedback.length;
+  await openFb();
+  await A.setInputFiles("#fbShotInput", imgPath);
+  await A.waitForSelector("#fbShotPreview:not([hidden])");
+  await A.fill("#fbMessage", "Before the screenshot SQL");
+  await A.click("#fbSend");
+  await A.waitForSelector("text=Screenshots can't be attached yet");
+  assert.equal(db.feedback.length, beforeRows + 1);
+  const plainRow = db.feedback[db.feedback.length - 1];
+  assert.equal(plainRow.message, "Before the screenshot SQL");
+  assert.equal(plainRow.has_screenshot, false);
+  await A.click("#mCancel");
+  feedbackShotsSql = true;
+  assert.ok(feedbackOps.every((o) => o.startsWith("upload ")), "app never lists, downloads or deletes feedback pictures: " + feedbackOps.join(","));
+  ok("feedback before the SQL is applied: text sent, clear screenshot message; upload-only access");
+
+
   // 11. Guest mode: device only, no storage calls.
   const before = storageLog.length;
   const G = await device(browser, { guest: true });
@@ -459,13 +562,42 @@ async function openHorse(page, name) {
   await G.waitForSelector("#qaScreenshotPreviewWrap:not([hidden])");
   await G.click("#qaSaveBtn");
   await sleep(2000);
-  assert.equal(storageLog.length, before, "guest never calls storage");
+  // Signed-in test devices may still run their scheduled cleanup meanwhile,
+  // so count only the guest page's own storage calls.
+  assert.deepEqual(guestStorageCalls, [], "guest never calls storage");
   assert.equal(await cardFor(G, "GuestHorse").locator(".badge.photo").count(), 1);
+  const feedbackBeforeGuest = db.feedback.length;
   await G.evaluate(() => document.getElementById("feedbackBtn").click());
   await G.waitForSelector("text=Sign in with Discord to send feedback");
-  assert.equal(db.feedback.length, 1, "guest cannot submit feedback");
+  assert.equal(await G.locator("#fbShotAdd").count(), 0, "guest gets no screenshot control");
+  assert.equal(db.feedback.length, feedbackBeforeGuest, "guest cannot submit feedback");
   ok("guest mode: device only, no storage calls");
 
+  // 12. Feedback layout at phone widths with a picture attached. Runs last:
+  //     these signed-in devices do their own startup cleanup calls.
+  for (const width of [320, 390]) {
+    const Pn = await device(browser, { viewport: { width, height: 740 } });
+    await Pn.waitForSelector("#feedbackBtn", { state: "attached" });
+    await Pn.evaluate(() => document.getElementById("feedbackBtn").click());
+    await Pn.waitForSelector("#fbMessage");
+    await Pn.setInputFiles("#fbShotInput", bigPng);
+    await Pn.waitForSelector("#fbShotPreview:not([hidden])");
+    const lay = await Pn.evaluate(() => {
+      const box = document.getElementById("modalBox"), img = document.getElementById("fbShotImg").getBoundingClientRect();
+      const btns = ["fbShotReplace", "fbShotRemove", "fbSend", "mCancel"].map((i) => document.getElementById(i).getBoundingClientRect());
+      return { overflow: box.scrollWidth > box.clientWidth + 1, doc: document.documentElement.scrollWidth, imgW: img.width, right: Math.max(img.right, ...btns.map((b) => b.right)) };
+    });
+    assert.equal(lay.overflow, false, width + "px: modal has no sideways overflow");
+    assert.ok(lay.doc <= width, width + "px: page has no sideways scroll");
+    assert.ok(lay.right <= width, width + "px: preview and buttons fit: " + JSON.stringify(lay));
+    const sendReach = await Pn.evaluate(() => { const b = document.getElementById("fbSend"); b.scrollIntoView({ block: "nearest" }); const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; });
+    assert.ok(sendReach, width + "px: Send button reachable by scrolling the form");
+    await Pn.screenshot({ path: path.join(__dirname, `fixtures-tmp-feedback-${width}.png`) });
+    assert.deepEqual(Pn.errors, []);
+    await Pn.context().close();
+  }
+  fs.unlinkSync(bigPng);
+  ok("feedback screenshot layout fits at 320 and 390 px");
   for (const p of [A, B, C, D, G]) assert.deepEqual(p.errors, [], "no page errors");
   ok("no page errors on any device");
   fs.unlinkSync(imgPath); fs.unlinkSync(img2Path);
