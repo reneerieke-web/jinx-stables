@@ -48,9 +48,10 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch finished: Renee signed in successfully at `https://jinxsstables.com`, confirmed all 77 horses, and confirmed the cloud save completed.
 - Pearl Abyss's recommended fan-content statement was added verbatim to the site footer and welcome-screen disclaimer while retaining the existing “Independent fan-made tool…” wording. Renee approved the exact wording for production.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
-- Claude approved the proposed data-limit SQL after replica tests covering the 2,000-row boundary, existing-row upserts at the limit, 32 KB horse data, 100-character stable names, RLS isolation, and direct function-call denial. The SQL remains review-only and has not been applied to Supabase.
+- Claude approved the proposed data-limit SQL after replica tests covering the 2,000-row boundary, existing-row upserts at the limit, 32 KB horse data, 100-character stable names, RLS isolation, and direct function-call denial.
 - App-side limit handling now keeps an unsaved limit-rejected horse local and editable during account connection, excludes UTF-8 snapshots over 26,000 bytes without blocking other queued saves, names excluded horses in a phone-visible banner, and explains that Recently deleted horses count toward 2,000 until their 30-day purge. Claude approved this protected sync change before SQL application.
 - Data-limit Step 1 completed: after Claude's approval, `main` was fast-forwarded to `61a2b41`. The production branch now contains the protected app-side handling before the database limits are applied.
+- Data-limit Step 2 completed: with Renee's approval, she ran `supabase/review/20260927_data_size_limits.sql` in the production Supabase SQL Editor. Supabase reported `Success. No rows returned`, confirming that the transaction committed without an SQL error.
 
 ## Security checkpoint
 
@@ -61,13 +62,12 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. With Renee's approval, walk her through applying `supabase/review/20260927_data_size_limits.sql` in the Supabase dashboard. It adds 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name.
-2. Confirm the two CHECK constraints, enforcement function, and BEFORE INSERT trigger exist.
-3. Renee runs a live oversized-notes test on the preview.
-4. Add the privacy note to the site footer.
-5. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-6. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
-7. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+1. Confirm the two CHECK constraints, enforcement function, and BEFORE INSERT trigger exist.
+2. Renee runs a live oversized-notes test on the preview.
+3. Add the privacy note to the site footer.
+4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
+5. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
 
