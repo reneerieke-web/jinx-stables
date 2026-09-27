@@ -318,6 +318,10 @@ async function openHorse(page, name) {
   assert.equal(ptr("h_two"), undefined, "no pointer without storage");
   assert.equal((await queueOf(A)).h_two.op, "upload", "stays queued");
   assert.equal(await A.locator("#shotSyncBanner").isHidden(), true, "no banner");
+  await openHorse(A, "Taffy");
+  await A.waitForSelector("#screenshotSyncState:not([hidden])");
+  assert.match(await A.locator("#screenshotSyncState").innerText(), /saved on this device only until syncing succeeds/);
+  await A.click("#closeEditor");
   bucketExists = true;
   await A.reload();
   await waitFor(() => ptr("h_two") && filesOf("h_two").length === 2, "queued upload sent");
@@ -344,7 +348,8 @@ async function openHorse(page, name) {
   assert.equal((await queueOf(A)).h_two.failed, "gaveup", "failed marker kept");
   const dlBeforeOpen = storageLog.filter((l) => l.startsWith("download")).length;
   await openHorse(A, "Taffy");
-  await A.waitForSelector("#screenshotSyncState:not([hidden])");
+  await A.waitForSelector("#shotRetryBtn");
+  assert.match(await A.locator("#screenshotSyncState").innerText(), /Clearing browser\/site data may remove it/);
   await sleep(800);
   assert.equal(storageLog.filter((l) => l.startsWith("download")).length, dlBeforeOpen, "no cloud download over the local picture");
   const kept = await localRec(A, "h_two");

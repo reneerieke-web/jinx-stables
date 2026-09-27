@@ -1382,6 +1382,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   var SHOT_HARD_BYTES = 600 * 1024;     // bucket file_size_limit
   var SHOT_ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
   var SHOT_UNREADABLE_MSG = "Couldn't read that image. This browser may not open iPhone HEIC photos; try a JPG or PNG screenshot, or share the photo as “Most Compatible.”";
+  var SHOT_DEVICE_ONLY_MSG = "Picture saved on this device only until syncing succeeds. Clearing browser/site data may remove it.";
   var SHOT_MAX_ATTEMPTS = 12;           // real server failures before giving up (~1.5 h of backoff)
 
   function normalizeScreenshotPointer(p){
@@ -3290,13 +3291,19 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     var box = el("screenshotSyncState");
     if(!box) return;
     var entry = shotSyncActive() ? loadShotQueue()[horse.id] : null;
-    if(!entry || entry.op !== "upload" || !entry.failed){ box.hidden = true; return; }
+    if(!entry || entry.op !== "upload"){ box.hidden = true; return; }
+    if(!entry.failed){
+      // Still waiting to upload (offline, storage not ready, or retrying).
+      box.innerHTML = '<div class="modal-note">' + esc(SHOT_DEVICE_ONLY_MSG) + '</div>';
+      box.hidden = false;
+      return;
+    }
     var cloudV = screenshotPointerV(horse);
     box.innerHTML =
       '<div class="project-warn">' + (entry.failed === "rejected"
         ? "This picture couldn’t be saved to your account (too large or not a readable image)."
         : "This picture couldn’t be saved to your account after several tries.") +
-      " It is only on this device.</div>" +
+      " " + esc(SHOT_DEVICE_ONLY_MSG) + "</div>" +
       '<div class="editor-actions" style="margin-top:8px; padding-top:0; border-top:none;">' +
         '<button type="button" class="btn small" id="shotRetryBtn">Try again</button>' +
         (cloudV ? '<button type="button" class="btn small" id="shotUseCloudBtn">Use the picture saved to my account</button>' : "") +
