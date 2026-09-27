@@ -296,7 +296,8 @@
     header.top{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
       gap:18px; flex-wrap:nowrap; padding:14px 20px; border:1px solid var(--border); border-radius:14px;
       background:rgba(36,43,36,.86); background:color-mix(in srgb, var(--panel) 86%, transparent); box-shadow:0 8px 24px rgba(0,0,0,.18);}
-    header.top > #cloudStatus{grid-column:1; justify-self:start; display:inline-flex; align-items:center; gap:7px;}
+    header.top > #cloudStatus{grid-column:1; justify-self:start; display:inline-flex; align-items:center; gap:7px;
+      min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis;}
     header.top > #cloudStatus::before{content:""; width:9px; height:9px; flex:0 0 9px; border-radius:50%;
       background:var(--text-faint); box-shadow:0 0 0 3px rgba(110,119,104,.13);}
     header.top > #cloudStatus[data-state="saving"]::before{background:var(--gold); box-shadow:0 0 0 3px rgba(201,154,68,.14);}
