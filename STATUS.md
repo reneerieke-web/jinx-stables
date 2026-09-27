@@ -52,6 +52,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - App-side limit handling now keeps an unsaved limit-rejected horse local and editable during account connection, excludes UTF-8 snapshots over 26,000 bytes without blocking other queued saves, names excluded horses in a phone-visible banner, and explains that Recently deleted horses count toward 2,000 until their 30-day purge. Claude approved this protected sync change before SQL application.
 - Data-limit Step 1 completed: after Claude's approval, `main` was fast-forwarded to `61a2b41`. The production branch now contains the protected app-side handling before the database limits are applied.
 - Data-limit Step 2 completed: with Renee's approval, she ran `supabase/review/20260927_data_size_limits.sql` in the production Supabase SQL Editor. Supabase reported `Success. No rows returned`, confirming that the transaction committed without an SQL error.
+- Data-limit Step 3 verified read-only by Claude: both CHECK constraints exist and are validated; `enforce_horses_per_stable_limit` is enabled on `public.horses` as a BEFORE INSERT trigger; function EXECUTE is limited to `postgres` and `service_role`; and all 77 existing horse rows pass, with a maximum stored JSON size of 2,470 bytes. Production `main` remains at `61a2b41`, so the app-side limit handling was live before database enforcement began.
 
 ## Security checkpoint
 
@@ -62,12 +63,11 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Confirm the two CHECK constraints, enforcement function, and BEFORE INSERT trigger exist.
-2. Renee runs a live oversized-notes test on the preview.
-3. Add the privacy note to the site footer.
-4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-5. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
-6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+1. Renee runs the live oversized-notes test on the preview.
+2. Add the privacy note to the site footer.
+3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
+4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+5. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
 
