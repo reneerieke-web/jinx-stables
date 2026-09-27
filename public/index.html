@@ -1274,7 +1274,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
         try{
           var tx = db.transaction(MEDIA_STORE, "readwrite");
           var rec = { horseId: horseId, full: fullDataUrl, thumb: thumbDataUrl, addedDate: today() };
-          if(cloudV) rec.cloudV = cloudV;
+          if(cloudV){ rec.cloudV = cloudV; rec.cacheScheme = SHOT_CACHE_SCHEME; }
           tx.objectStore(MEDIA_STORE).put(rec);
           tx.oncomplete = function(){ resolve(); };
           tx.onerror = function(){ reject(tx.error); };
@@ -1381,6 +1381,14 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   var SHOT_TARGET_BYTES = 500 * 1024;   // compression goal for full.jpg
   var SHOT_HARD_BYTES = 600 * 1024;     // bucket file_size_limit
   var SHOT_ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+  // Files keep fixed names, so every download asks for its version
+  // (cacheNonce=v) and no browser or CDN cache can answer with an older
+  // picture. Copies saved before this rule (no cacheScheme) may hold old
+  // bytes under a new version, so they are re-fetched once.
+  var SHOT_CACHE_SCHEME = 2;
+  function shotCopyIsCurrent(rec, v){
+    return !!rec && !!v && rec.cloudV === v && rec.cacheScheme === SHOT_CACHE_SCHEME;
+  }
   var SHOT_UNREADABLE_MSG = "Couldn't read that image. This browser may not open iPhone HEIC photos; try a JPG or PNG screenshot, or share the photo as “Most Compatible.”";
   var SHOT_DEVICE_ONLY_MSG = "Picture saved on this device only until syncing succeeds. Clearing browser/site data may remove it.";
   var SHOT_MAX_ATTEMPTS = 12;           // real server failures before giving up (~1.5 h of backoff)
@@ -1434,7 +1442,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(hasPendingQueueEntry) return "keep";            // this device's own change wins until sent
     if(pointer === null) return rec && rec.cloudV ? "clear" : "keep";
     if(!pointer || !pointer.v) return "keep";          // no information
-    if(!rec || rec.cloudV !== pointer.v) return "stale";
+    if(!shotCopyIsCurrent(rec, pointer.v)) return "stale";
     return "keep";
   }
   // A local picture qualifies for the one-time "upload from this device"
@@ -3241,7 +3249,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     }
     var loading = el("screenshotLoading");
     if(loading) loading.hidden = false;
-    return shotStorage().download(shotPaths(cloudUserId, horse.id).thumb).then(function(res){
+    return shotStorage().download(shotPaths(cloudUserId, horse.id).thumb, { cacheNonce: v }).then(function(res){
       if(res.error || !res.data) throw res.error || new Error("no data");
       return blobToDataUrl(res.data);
     }).then(function(thumb){
@@ -3260,13 +3268,13 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       var v = screenshotPointerV(horse);
       var q = shotSyncActive() ? loadShotQueue() : Object.create(null);
       // This device's own picture (never uploaded, or not yet) wins.
-      if(rec && rec.full && (!v || rec.cloudV === v || shotEntryIsPending(q[horse.id]))) return rec.full;
+      if(rec && rec.full && (!v || shotCopyIsCurrent(rec, v) || shotEntryIsPending(q[horse.id]))) return rec.full;
       if(!v || !shotSyncActive()) return rec ? (rec.full || rec.thumb) : null;
-      return shotStorage().download(shotPaths(cloudUserId, horse.id).full).then(function(res){
+      return shotStorage().download(shotPaths(cloudUserId, horse.id).full, { cacheNonce: v }).then(function(res){
         if(res.error || !res.data) throw res.error || new Error("no data");
         return blobToDataUrl(res.data);
       }).then(function(full){
-        var thumb = rec && rec.cloudV === v ? rec.thumb : full;
+        var thumb = shotCopyIsCurrent(rec, v) ? rec.thumb : full;
         return saveScreenshot(horse.id, full, thumb, v).then(function(){ return full; });
       }).catch(function(){ return rec ? rec.thumb : null; });
     });

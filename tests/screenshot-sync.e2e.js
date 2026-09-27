@@ -40,6 +40,7 @@ const storage = new Map(); // path -> {b64, type, updated_at}
 let bucketExists = true;
 let forceServerError = false;
 const storageLog = [];
+const edgeCache = new Map();
 const rangeLog = [];
 let stamp = 0;
 const tick = () => new Date(Date.now() + (++stamp)).toISOString();
@@ -100,7 +101,13 @@ function storageOp(op, a) {
   if (op === "download") {
     const f = storage.get(a.path);
     if (!f || !a.path.startsWith(UID + "/")) return { data: null, error: { statusCode: "400", message: "Object not found" } };
-    return { data: { b64: f.b64, type: f.type }, error: null };
+    // Emulate a browser/CDN cache keyed by request URL: a repeated URL gets
+    // whatever bytes were first served for it, even after an overwrite.
+    // This is the real-world stale-picture bug from Renee's PralineKnot test.
+    const key = a.path + "?" + (a.cacheNonce == null ? "" : a.cacheNonce);
+    if (!edgeCache.has(key)) edgeCache.set(key, { b64: f.b64, type: f.type });
+    const hit = edgeCache.get(key);
+    return { data: { b64: hit.b64, type: hit.type }, error: null };
   }
   if (op === "remove") {
     const gone = [];
@@ -160,7 +167,7 @@ const FAKE_CLIENT = `
     from: builder,
     storage: { from: function(){ return {
       upload: function(path, blob, opts){ return blobToB64(blob).then(function(b64){ return window.__fakeStorage("upload", JSON.stringify({ path: path, b64: b64, type: (opts && opts.contentType) || blob.type })); }).then(JSON.parse); },
-      download: function(path){ return window.__fakeStorage("download", JSON.stringify({ path: path })).then(JSON.parse).then(function(r){ return r.error ? r : { data: b64ToBlob(r.data.b64, r.data.type), error: null }; }); },
+      download: function(path, opts){ return window.__fakeStorage("download", JSON.stringify({ path: path, cacheNonce: opts && opts.cacheNonce != null ? String(opts.cacheNonce) : null })).then(JSON.parse).then(function(r){ return r.error ? r : { data: b64ToBlob(r.data.b64, r.data.type), error: null }; }); },
       remove: function(paths){ return window.__fakeStorage("remove", JSON.stringify({ paths: paths })).then(JSON.parse); },
       list: function(prefix){ return window.__fakeStorage("list", JSON.stringify({ prefix: prefix })).then(JSON.parse); }
     }; } }
@@ -278,8 +285,22 @@ async function openHorse(page, name) {
   await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   assert.equal(storageLog.filter((l) => l.startsWith("download")).length, dlBeforeReplace + 1, "B re-fetched after the pointer changed");
   assert.equal((await localRec(B, "h_one")).cloudV, v2, "B's copy now matches the new pointer");
+  const bThumb = (await localRec(B, "h_one")).thumb.split(",")[1];
+  assert.equal(bThumb, storage.get(`${UID}/h_one/thumb.jpg`).b64, "B shows the NEW picture, not a cached old one");
   await B.click("#closeEditor");
-  ok("replace: files overwritten, pointer moved, other device refreshed");
+  ok("replace: files overwritten, pointer moved, other device shows the new picture despite caching");
+
+  // 3b. A copy saved before versioned downloads (no cacheScheme) that holds old
+  // bytes under the current version is re-fetched once (the PralineKnot case).
+  await putLocal(B, "h_one", "#00ff00", v2); // wrong picture labelled with the current version
+  await B.reload();
+  await waitFor(() => B.locator(".card").count().then((n) => n === 3), "B reload 2");
+  await openHorse(B, "Cannoli");
+  await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
+  await waitFor(async () => { const rec = await localRec(B, "h_one"); return rec && rec.cacheScheme === 2; }, "poisoned copy re-fetched");
+  assert.equal((await localRec(B, "h_one")).thumb.split(",")[1], storage.get(`${UID}/h_one/thumb.jpg`).b64, "poisoned copy replaced by the real picture");
+  await B.click("#closeEditor");
+  ok("old-format cached copy is re-checked once and corrected");
 
   // 4. Soft delete keeps files; Restore keeps the pointer.
   await openHorse(A, "Cannoli");

@@ -44,7 +44,11 @@ assert.equal(ctx.shotBackoffMs(20), 600000);
 
 // Cache decisions.
 const V = { v: "a" };
-assert.equal(ctx.shotCacheDecision(V, { cloudV: "a" }, false), "keep");
+assert.equal(ctx.shotCacheDecision(V, { cloudV: "a", cacheScheme: 2 }, false), "keep");
+assert.equal(ctx.shotCacheDecision(V, { cloudV: "a" }, false), "stale", "copy saved before versioned downloads is re-fetched once");
+assert.equal(ctx.shotCopyIsCurrent({ cloudV: "a", cacheScheme: 2 }, "a"), true);
+assert.equal(ctx.shotCopyIsCurrent({ cloudV: "a", cacheScheme: 2 }, "b"), false);
+assert.equal(ctx.shotCopyIsCurrent(null, "a"), false);
 assert.equal(ctx.shotCacheDecision(V, { cloudV: "old" }, false), "stale");
 assert.equal(ctx.shotCacheDecision(V, null, false), "stale");
 assert.equal(ctx.shotCacheDecision(V, { cloudV: "old" }, true), "keep", "own pending change wins");
