@@ -6,7 +6,7 @@ Updated: September 27, 2026 (ET)
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** `claude/screenshot-sync-app` (screenshot sync app portion on storage SQL revision 2, waiting for Codex re-review; not merged)
+- **Claude's working branch:** none open; `claude/screenshot-sync-app` (Codex approved `c15726a`, plus the agreed device-only wording) was fast-forwarded into `cloud-sync-preview`
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
@@ -74,12 +74,24 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Renee decides when to open Supabase and run `supabase/review/20260927_screenshot_storage.sql`. No Supabase change without her explicit OK.
-2. **Release requirement (Codex):** orphan cleanup for screenshots of purged horses must exist before screenshot sync goes live broadly.
-3. Add the privacy note to the site footer.
-4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-5. Screenshot sync app portion (plan sections 3 to 7 plus orphan cleanup) built by Claude on `claude/screenshot-sync-app`; Codex reviews, then merges into `cloud-sync-preview`. Order agreed by Renee (app-first): review → Renee applies SQL → Claude runs the cross-account storage test → Renee tests computer → phone → delete/restore → production.
-6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+Release sequence (agreed Sept 27; finish what is built, no new features):
+
+1. Renee approves applying `supabase/review/20260927_screenshot_storage.sql` (revision 2). Claude then verifies it read-only.
+2. Security: cross-account storage test (Account A cannot read, list, replace, or remove Account B's pictures). Mini with a separate Discord test account; Claude's database-level test with Renee's OK.
+3. Real-device tests by Renee (iPhone especially, to settle HEIC/photo picking): computer → phone, phone → computer, replace, delete horse, Recently deleted, restore, failed upload/retry, logout/login.
+4. Migration test: a roster saved on a device before sign-in uploads exactly once, with no missing or duplicated horses. (Note: "Start an empty stable" requires sign-in today and sample horses are never saved, so the test uses a pre-cloud local roster. Whether guests should keep horses without signing in is a later product decision.)
+5. Beta with the four testers: plain player tasks, no expected results given.
+6. Fix release blockers only; record usability items and ideas.
+7. Release-candidate freeze: one exact `cloud-sync-preview` SHA. Nobody changes it. Claude reviews, Codex reviews, Renee and testers test that SHA.
+8. Fast-forward `main` to that exact SHA.
+
+Caution while preview and production share the same data: do not use "Restore App Backup (JSON)" on production, because production code drops picture links on restore. Normal editing is fine.
+
+Other items, after the release:
+- Add the privacy note to the site footer.
+- Prevent iOS from offering "AutoFill Contact" on the horse Name field.
+- Ship the horse advisor, Keep this coat, and screenshot color picker from Claude's `horse-advisor-and-coat-picker.diff`.
+- Postponed on purpose: Google/Facebook login, advanced breeding tools, coat research, AI coat recognition, new themes, shared stables. The welcome artwork stays on its own `welcome-artwork-preview` track.
 
 ## Backlog
 
