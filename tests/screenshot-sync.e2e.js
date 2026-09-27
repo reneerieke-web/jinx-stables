@@ -3,7 +3,7 @@
 // devices signed in to the same account; one more checks guest mode.
 //
 // The fake mirrors supabase/review/20260927_screenshot_storage.sql
-// (revision 3: owner folder, live horse, versioned {v}-full/-thumb.jpg,
+// (revision 2: owner folder, live horse, fixed full.jpg/thumb.jpg,
 // 600 KB, image/jpeg) and PostgREST's 1,000-row response cap.
 //
 //   npm i playwright   (needs a Chromium; set CHROMIUM_PATH if not bundled)
@@ -89,7 +89,7 @@ function storageOp(op, a) {
   if (!bucketExists) return { data: null, error: { statusCode: "404", message: "Bucket not found" } };
   if (op === "upload" && forceServerError) return { data: null, error: { statusCode: "500", message: "Internal Server Error" } };
   if (op === "upload") {
-    const m = /^([^/]+)\/([A-Za-z0-9_-]{1,64})\/[A-Za-z0-9_-]{1,40}-(full|thumb)\.jpg$/.exec(a.path);
+    const m = /^([^/]+)\/([A-Za-z0-9_-]{1,64})\/(full|thumb)\.jpg$/.exec(a.path);
     const live = m && m[1] === UID && db.horses.some((h) => h.stable_id === STABLE && h.id === m[2] && h.deleted_at == null);
     if (!live) return { data: null, error: { statusCode: "403", message: "new row violates row-level security policy" } };
     if (a.type !== "image/jpeg") return { data: null, error: { statusCode: "415", message: "mime type not supported" } };
@@ -122,7 +122,7 @@ function storageOp(op, a) {
   return { data: null, error: { message: "unsupported" } };
 }
 const filesOf = (id) => [...storage.keys()].filter((p) => p.startsWith(`${UID}/${id}/`)).map((p) => p.split("/").pop()).sort();
-const pairOf = (v) => [`${v}-full.jpg`, `${v}-thumb.jpg`];
+const PAIR = ["full.jpg", "thumb.jpg"];
 
 // ---------- fake supabase-js loaded into the page ----------
 const FAKE_CLIENT = `
@@ -236,14 +236,14 @@ async function openHorse(page, name) {
   await A.click("#saveBtn");
   await waitFor(() => ptr("h_one") && filesOf("h_one").length === 2, "upload + pointer");
   const v1 = ptr("h_one").v;
-  assert.deepEqual(filesOf("h_one"), pairOf(v1).sort(), "files are the pointer's version");
-  const fullBytes = Buffer.from(storage.get(`${UID}/h_one/${v1}-full.jpg`).b64, "base64");
+  assert.deepEqual(filesOf("h_one"), PAIR, "files are the pointer's version");
+  const fullBytes = Buffer.from(storage.get(`${UID}/h_one/full.jpg`).b64, "base64");
   assert.ok(fullBytes.length <= 500 * 1024, "full under 500 KB");
-  const dims = await A.evaluate((b64) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.width, i.height]); i.src = "data:image/jpeg;base64," + b64; }), storage.get(`${UID}/h_one/${v1}-full.jpg`).b64);
+  const dims = await A.evaluate((b64) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.width, i.height]); i.src = "data:image/jpeg;base64," + b64; }), storage.get(`${UID}/h_one/full.jpg`).b64);
   assert.ok(Math.max(...dims) <= 1280, "full capped at 1280 px");
   const ups = storageLog.filter((l) => l.startsWith("upload")).map((l) => l.split("/").pop());
-  assert.deepEqual(ups.slice(0, 2), [`${v1}-thumb.jpg`, `${v1}-full.jpg`]);
-  ok("device A: thumb then full under one version, then pointer");
+  assert.deepEqual(ups.slice(0, 2), ["thumb.jpg", "full.jpg"]);
+  ok("device A: thumb then full, then pointer");
 
   // 2. Device B (phone) shows the badge, downloads that version's thumb on open, full on tap.
   const B = await device(browser, { viewport: { width: 390, height: 844 } });
@@ -253,16 +253,16 @@ async function openHorse(page, name) {
   await openHorse(B, "Cannoli");
   await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   const dls = storageLog.filter((l) => l.startsWith("download")).slice(dl0);
-  assert.deepEqual(dls.map((l) => l.split("/").pop()), [`${v1}-thumb.jpg`], "only the thumb on open");
+  assert.deepEqual(dls.map((l) => l.split("/").pop()), ["thumb.jpg"], "only the thumb on open");
   await B.click("#screenshotPreview");
   await B.waitForSelector(".shot-full-overlay img");
-  assert.ok(storageLog.slice(-1)[0].endsWith(`${v1}-full.jpg`), "full on tap");
+  assert.ok(storageLog.slice(-1)[0].endsWith("h_one/full.jpg"), "full on tap");
   assert.ok(await B.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "no horizontal scroll on phone");
   await B.click(".shot-full-overlay");
   await B.click("#closeEditor");
-  ok("device B: badge, versioned thumb on open, full on tap, phone layout OK");
+  ok("device B: badge, thumb on open, full on tap, phone layout OK");
 
-  // 3. Replace on A: new version uploads, pointer moves, old version pruned only after the cloud confirms.
+  // 3. Replace on A: files overwritten, pointer moves, other device refreshes its copy.
   await openHorse(A, "Cannoli");
   await A.waitForSelector("#screenshotPreviewWrap:not([hidden])");
   await A.setInputFiles("#screenshotFileInput", img2Path);
@@ -270,16 +270,16 @@ async function openHorse(page, name) {
   await A.click("#saveBtn");
   await waitFor(() => ptr("h_one") && ptr("h_one").v !== v1, "new pointer");
   const v2 = ptr("h_one").v;
-  await waitFor(() => JSON.stringify(filesOf("h_one")) === JSON.stringify(pairOf(v2).sort()), "old version pruned");
-  const pruneAt = storageLog.findIndex((l) => l.startsWith("remove") && l.includes(v1));
-  assert.ok(pruneAt > 0, "old version removed");
+  assert.deepEqual(filesOf("h_one"), PAIR, "still exactly two files");
+  const dlBeforeReplace = storageLog.filter((l) => l.startsWith("download")).length;
   await B.reload();
   await waitFor(() => B.locator(".card").count().then((n) => n === 3), "B reload");
   await openHorse(B, "Cannoli");
   await B.waitForSelector("#screenshotPreviewWrap:not([hidden])");
-  assert.ok(storageLog.slice(-1)[0].endsWith(`${v2}-thumb.jpg`), "B fetched the new version");
+  assert.equal(storageLog.filter((l) => l.startsWith("download")).length, dlBeforeReplace + 1, "B re-fetched after the pointer changed");
+  assert.equal((await localRec(B, "h_one")).cloudV, v2, "B's copy now matches the new pointer");
   await B.click("#closeEditor");
-  ok("replace: new version, pointer moved, old version pruned, other device updated");
+  ok("replace: files overwritten, pointer moved, other device refreshed");
 
   // 4. Soft delete keeps files; Restore keeps the pointer.
   await openHorse(A, "Cannoli");
@@ -288,7 +288,7 @@ async function openHorse(page, name) {
   await A.click("#deleteBtn");
   await waitFor(() => row("h_one").deleted_at != null, "soft delete synced");
   await sleep(1500);
-  assert.deepEqual(filesOf("h_one"), pairOf(v2).sort(), "files kept after soft delete");
+  assert.deepEqual(filesOf("h_one"), PAIR, "files kept after soft delete");
   await A.evaluate(() => document.getElementById("recentlyDeletedBtn").click());
   await A.click("[data-restore-index]");
   await waitFor(() => row("h_one").deleted_at == null, "restored");
@@ -306,7 +306,7 @@ async function openHorse(page, name) {
   await waitFor(() => B.locator(".card").count().then((n) => n === 3), "B reload");
   await waitFor(() => cardFor(B, "Cannoli").locator(".badge.photo").count().then((n) => n === 0), "B badge cleared");
   assert.equal(await localRec(B, "h_one"), null, "B's cached copy cleared");
-  ok("remove: all versions deleted, pointer null, other device cleared");
+  ok("remove: files deleted, pointer null, other device cleared");
 
   // 6. Storage not set up yet: queued quietly, uploads once available.
   bucketExists = false;
@@ -352,7 +352,7 @@ async function openHorse(page, name) {
   assert.equal(ptr("h_two").v, cloudV2, "cloud pointer untouched");
   forceServerError = false;
   await A.click("#shotRetryBtn");
-  await waitFor(() => ptr("h_two").v === "fixrepl1" && JSON.stringify(filesOf("h_two")) === JSON.stringify(pairOf("fixrepl1").sort()), "retry uploads and prunes");
+  await waitFor(() => ptr("h_two").v === "fixrepl1" && JSON.stringify(filesOf("h_two")) === JSON.stringify(PAIR), "retry uploads");
   await A.click("#closeEditor");
   ok("permanent failure: marked, local picture protected, Try again uploads");
 
@@ -377,22 +377,20 @@ async function openHorse(page, name) {
   late.data.screenshot = { v: "latev1" };
   db.horses.push(late); // sorts after 1,100 fillers: only visible on page 2
   const put = (p, iso) => storage.set(`${UID}/${p}`, { b64: "AA==", type: "image/jpeg", updated_at: iso });
-  put("zz_late/latev1-full.jpg", old); put("zz_late/latev1-thumb.jpg", old);
-  put("zz_late/stale0-full.jpg", old);                 // older version of a known horse: goes
-  put("h_purged/old1-full.jpg", old); put("h_purged/old1-thumb.jpg", old);
-  put("h_brandnew/n1-full.jpg", now());                // unknown but fresh: stays
-  put("h_three/stale9-full.jpg", now());               // non-current but fresh: stays
+  put("zz_late/full.jpg", old); put("zz_late/thumb.jpg", old);   // known horse on page 2: stays
+  put("h_purged/full.jpg", old); put("h_purged/thumb.jpg", old); // purged horse: goes
+  put("h_brandnew/full.jpg", now());                             // unknown but fresh: stays
   rangeLog.length = 0;
   const D = await device(browser);
-  await waitFor(() => !storage.has(`${UID}/h_purged/old1-full.jpg`), "orphan removed", 25000);
+  await waitFor(() => !storage.has(`${UID}/h_purged/full.jpg`), "orphan removed", 25000);
   await sleep(500);
-  assert.deepEqual(filesOf("zz_late"), pairOf("latev1").sort(), "page-2 horse kept, its stale version removed");
+  assert.deepEqual(filesOf("zz_late"), PAIR, "page-2 horse's picture kept");
+  assert.equal(filesOf("h_purged").length, 0, "purged horse's files removed");
   assert.ok(rangeLog.includes("0-999") && rangeLog.includes("1000-1999"), "horse ids paged with range(): " + rangeLog.join(","));
-  assert.ok(storage.has(`${UID}/h_brandnew/n1-full.jpg`), "fresh unknown folder kept");
-  assert.ok(storage.has(`${UID}/h_three/stale9-full.jpg`), "fresh non-current version kept");
+  assert.ok(storage.has(`${UID}/h_brandnew/full.jpg`), "fresh unknown folder kept");
   assert.equal(filesOf("h_two").length, 2, "live horses kept");
   db.horses = db.horses.filter((h) => !/^x\d{4}$/.test(h.id) && h.id !== "zz_late");
-  ok("cleanup: pages past 1,000 rows, keeps valid files, removes orphans and stale versions");
+  ok("cleanup: pages past 1,000 rows, keeps valid pictures, removes purged horses' files");
 
   // 11. Guest mode: device only, no storage calls.
   const before = storageLog.length;

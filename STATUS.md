@@ -6,7 +6,7 @@ Updated: September 27, 2026 (ET)
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** `claude/screenshot-sync-app` (screenshot sync app portion + storage SQL revision 3, waiting for Codex re-review; not merged)
+- **Claude's working branch:** `claude/screenshot-sync-app` (screenshot sync app portion on storage SQL revision 2, waiting for Codex re-review; not merged)
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
@@ -60,7 +60,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Warning overlap fixed by Claude (`35da65f`, on `claude/cloud-limit-warning-fix`, awaiting Codex review): the header `#cloudStatus` now says only "Cloud save blocked" and the full message lives only in `#cloudLimitBanner`. Regression test added; overlap reproduced at 1280 and 700 px on the old code and gone after; phone header unchanged.
 - Codex approved the warning fix and merged Claude's branch into `cloud-sync-preview` at `e48781f` (tests pass; `main` untouched).
 - Storage SQL revision 2 (`264d7bf`, **not applied**): Codex found revision 1 (`c74681c`) counted `storage.objects` inside its own policy; Claude reproduced "infinite recursion" on the first upload. Uploads now require a live horse row in the caller's own stable, so the 2,000-horse limit caps storage at 4,000 objects. Local replica tests (`tests/storage/`) pass 27/27. Known gap: files of horses purged after 30 days remain until orphan cleanup.
-- Storage SQL revision 3 (on `claude/screenshot-sync-app`, **not applied**, needs Codex re-review): versioned file names `{v}-full.jpg` / `{v}-thumb.jpg` so a thumbnail and full image always match across devices. The fixed 4,000-object ceiling no longer holds (old versions are deleted by the app and the daily cleanup); it was never quota protection anyway (4,000 × 600 KB > the 1 GB free plan). Replica tests pass 31/31.
+- Storage SQL stays at revision 2 (Renee's decision, Sept 27, on Mini's recommendation). A versioned-file revision 3 was drafted and withdrawn to keep the hard bound of two files per horse. Accepted limitation: two devices uploading different pictures of the same horse at the same moment can mismatch thumbnail and full image; adding the picture again fixes it. The file bound (4,000 per account, about 2.4 GB) is not free-plan protection by itself; watch storage usage.
 - Codex approved `264d7bf` and `3a4d00e` with no blocking findings; Claude fast-forwarded `cloud-sync-preview` to include them. The SQL is still **not applied**.
 - Updated screenshot sync plan committed to `docs/screenshot-sync-plan.md` (adds Dream/Mythical skip, portrait color tip, zoom, OCR later).
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.

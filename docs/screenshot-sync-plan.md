@@ -15,7 +15,7 @@ A screenshot added on one device shows up on the user's other devices. Screensho
 ### 1. Storage (Supabase Storage)
 - One **private** bucket: `horse-screenshots`. Not public, no public URLs.
 - Bucket limits: `file_size_limit` 600 KB, `allowed_mime_types` = `image/jpeg`.
-- File paths (SQL revision 3): `{auth.uid()}/{horse_id}/{v}-full.jpg` and `{auth.uid()}/{horse_id}/{v}-thumb.jpg`, where `{v}` is the upload's version. Files are never overwritten by a different picture, so a pointer's thumbnail and full image always come from the same upload.
+- File paths (SQL revision 2): `{auth.uid()}/{horse_id}/full.jpg` and `{auth.uid()}/{horse_id}/thumb.jpg`. Fixed names give a hard bound of two files per horse row.
   The first folder is always the owner's user id, which keeps the security rules simple.
 
 ### 2. Security rules (RLS on `storage.objects`)
@@ -35,10 +35,9 @@ For role `authenticated`, bucket `horse-screenshots` only:
 1. User picks an image. Compress: `full` max **1280 px**, JPEG quality 0.8. If still over 500 KB, retry at 0.7, then 0.6. `thumb` 320 px, 0.7.
 2. Save to IndexedDB right away (works offline, same as today).
 3. Put an entry in a **persisted upload queue** (localStorage, per user). The queue waits until the horse row has reached the cloud, because storage refuses uploads for horses it cannot find.
-4. Upload `{v}-thumb.jpg` then `{v}-full.jpg`.
+4. Upload `thumb.jpg` then `full.jpg` (`upsert: true`).
 5. **Only after both uploads succeed**, set `horse.screenshot.v` and let normal horse sync save it.
    So no device ever sees a pointer to a file that is not there yet.
-5b. Once the cloud confirms the new pointer, delete that horse's older versions. The daily cleanup catches any that were missed (only files older than a day, never the current version or a version this device is still uploading).
 6. Failures stay queued and retry with backoff (5 s doubling, capped at 10 minutes). A rejected file (too big, wrong type, unreadable) shows a banner naming the horse and is not retried. After **12 real server failures** the device stops trying and says so. A rejected or given-up picture keeps a "not synced" marker, so an older cloud picture never replaces it; the editor offers **Try again** or **Use the picture saved to my account**. Replace or Remove also clear it; being offline does not count, and the queue resumes on the browser's `online` event. The queue only runs while the app is open.
 7. Every picture is re-drawn on a canvas and saved as JPEG before it is stored or uploaded, so PNG/WebP/JPG all become `image/jpeg`. A format the browser itself cannot open (for example HEIC on a desktop browser without HEIC support) fails at pick time with a message suggesting a JPG/PNG or "Most Compatible"; it never enters the queue, so it cannot fail silently.
 
@@ -93,12 +92,12 @@ Honest limits:
 - **Endless retries:** handled; see section 4 step 6 (12-failure ceiling, offline pauses, rejections stop at once).
 - **HEIC:** handled; see section 4 step 7. Not verified on a real iPhone yet, so it is on Renee's phone test list.
 - **Deleted horses filling the 2,000 cap:** this is the existing horse-row limit, not a screenshot cap (pictures do not add to it). A power-user "empty Recently deleted now" would need a hard-delete permission that signed-in users deliberately do not have today. Open decision for Renee; not part of this release.
-- **Two devices uploading different pictures of the same horse at the same moment:** resolved in SQL revision 3 with versioned file names (Codex review of `d741432`). Whichever device saves its pointer last wins, and its thumbnail and full image are always a matching pair.
+- **Two devices uploading different pictures of the same horse at the same moment:** accepted known limitation (Renee's decision, Sept 27, on Mini's recommendation). The thumbnail and full image could come from different uploads; adding the picture again fixes it. A versioned-file revision 3 was drafted and withdrawn to keep the hard per-account file bound. That bound is on file count (at most 4,000 per account, about 2.4 GB at 600 KB each); it is not by itself free-plan protection, so storage usage should still be watched.
 
 ## Codex review of d741432 (fixed)
 - Orphan cleanup read horse ids in one request, which the API caps at 1,000 rows; horses past that could lose their pictures. Now paged with `range()`; regression test uses 1,101+ horses.
 - A permanently failed replacement could later be overwritten by the older cloud copy. Now kept with a "not synced" marker until the user chooses.
-- Thumbnail/full mismatch across devices: versioned file names (above).
+- Thumbnail/full mismatch across devices: accepted as a known limitation instead (above).
 
 ## Security test before release (Claude runs, rolled back or on test users only)
 1. User B cannot list, download, upload to, overwrite, or delete anything in user A's folder.

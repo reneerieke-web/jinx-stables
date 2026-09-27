@@ -20,26 +20,9 @@ assert.equal(ctx.normalizeScreenshotPointer({ v: "" }), undefined);
 assert.equal(ctx.normalizeScreenshotPointer("x"), undefined);
 
 // Paths match the storage policy's rule.
-const p = ctx.shotPaths("uid-1", "h_abc", "v1");
-assert.equal(p.full, "uid-1/h_abc/v1-full.jpg");
-assert.equal(p.thumb, "uid-1/h_abc/v1-thumb.jpg");
-assert.equal(ctx.shotVersionOfFile("mg3k2x1a-4f9z2q-full.jpg"), "mg3k2x1a-4f9z2q");
-assert.equal(ctx.shotVersionOfFile("v1-thumb.jpg"), "v1");
-assert.equal(ctx.shotVersionOfFile("full.jpg"), "");
-assert.equal(ctx.shotVersionOfFile("v1-full.png"), "");
-
-// Which files may be deleted.
-const T0 = Date.parse("2026-10-01T00:00:00Z");
-const f = (name, iso) => ({ name, updated_at: iso });
-const oldIso = "2026-09-01T00:00:00Z", newIso = "2026-09-30T23:00:00Z";
-const folder = [f("a-full.jpg", oldIso), f("a-thumb.jpg", oldIso), f("b-full.jpg", oldIso), f("b-thumb.jpg", oldIso), f("c-full.jpg", newIso)];
-const DAY = 24 * 60 * 60 * 1000;
-assert.deepEqual([...ctx.shotDeletableFiles(folder, { v: "b" }.v, "", T0, DAY)], ["a-full.jpg", "a-thumb.jpg"], "keeps current b and too-new c");
-assert.deepEqual([...ctx.shotDeletableFiles(folder, "b", "a", T0, DAY)], [], "keeps this device's pending upload a");
-assert.deepEqual([...ctx.shotDeletableFiles(folder, "b", "", T0, 0)], ["a-full.jpg", "a-thumb.jpg", "c-full.jpg"], "prune after confirmed pointer has no age rule");
-assert.deepEqual([...ctx.shotDeletableFiles(folder, null, "", T0, DAY)].sort(), ["a-full.jpg", "a-thumb.jpg", "b-full.jpg", "b-thumb.jpg"], "removed picture: old files go");
-assert.deepEqual([...ctx.shotDeletableFiles(folder, undefined, "", T0, DAY)], [], "unknown pointer deletes nothing");
-assert.deepEqual([...ctx.shotDeletableFiles([f("x-full.jpg")], null, "", T0, DAY)], [], "no timestamp, no delete");
+const p = ctx.shotPaths("uid-1", "h_abc");
+assert.equal(p.full, "uid-1/h_abc/full.jpg");
+assert.equal(p.thumb, "uid-1/h_abc/thumb.jpg");
 assert.equal(ctx.shotIdSafe("h_mufu0wft0leo32"), true);
 assert.equal(ctx.shotIdSafe("../x"), false);
 

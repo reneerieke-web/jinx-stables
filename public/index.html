@@ -1396,34 +1396,13 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     return p && p.v ? p.v : "";
   }
   function shotIdSafe(id){ return /^[A-Za-z0-9_-]{1,64}$/.test(String(id || "")); }
-  // Versioned, immutable names: {uid}/{horse}/{v}-full.jpg and -thumb.jpg.
-  // A pointer names one version, so its thumbnail and full image always come
-  // from the same upload even if two devices upload at the same moment.
-  function shotPaths(userId, horseId, v){
-    var base = userId + "/" + horseId + "/" + v;
-    return { full: base + "-full.jpg", thumb: base + "-thumb.jpg" };
-  }
-  function shotVersionOfFile(name){
-    var m = /^([A-Za-z0-9_-]{1,40})-(full|thumb)\.jpg$/.exec(String(name || ""));
-    return m ? m[1] : "";
-  }
-  // Which files in one horse's folder may be deleted, given the version
-  // the horse points at (keepV), a version still being uploaded from this
-  // device (pendingV), and a minimum age that protects uploads in flight
-  // on other devices. keepV === null means the picture was removed;
-  // keepV === undefined means "unknown", which deletes nothing.
-  function shotDeletableFiles(files, keepV, pendingV, nowMs, minAgeMs){
-    if(keepV === undefined) return [];
-    return (files || []).filter(function(f){
-      if(!f || !f.name) return false;
-      var v = shotVersionOfFile(f.name);
-      if(v && (v === keepV || v === pendingV)) return false;
-      if(minAgeMs){
-        var t = Date.parse(f.updated_at || f.created_at || "");
-        if(!isFinite(t) || (nowMs - t) < minAgeMs) return false;
-      }
-      return true;
-    }).map(function(f){ return f.name; });
+  // Fixed names (storage SQL revision 2): at most two files per horse row.
+  // Accepted limitation (Renee, Sept 27): if two devices upload different
+  // pictures of the same horse at the same moment, the thumbnail and full
+  // image can come from different uploads; adding the picture again fixes it.
+  function shotPaths(userId, horseId){
+    var base = userId + "/" + horseId + "/";
+    return { full: base + "full.jpg", thumb: base + "thumb.jpg" };
   }
   function dataUrlByteLength(dataUrl){
     var s = String(dataUrl || "");
@@ -3017,9 +2996,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   //   upload {v}            send this device's picture as version v
   //   upload {v, failed}    gave up or refused; kept so an older cloud copy
   //                         never silently replaces this device's picture
-  //   remove                delete every version of this horse's picture
-  //   prune {v}             after a successful upload: once the cloud
-  //                         confirms pointer v, delete older versions
+  //   remove                delete this horse's picture files
   function loadShotQueue(){
     if(!cloudUserId) return Object.create(null);
     try{
@@ -3029,9 +3006,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       if(parsed && typeof parsed === "object"){
         Object.keys(parsed).forEach(function(id){
           var e = parsed[id];
-          if(!shotIdSafe(id) || !e || ["upload", "remove", "prune"].indexOf(e.op) === -1) return;
+          if(!shotIdSafe(id) || !e || ["upload", "remove"].indexOf(e.op) === -1) return;
           var v = typeof e.v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(e.v) ? e.v : "";
-          if(e.op !== "remove" && !v) return;
+          if(e.op === "upload" && !v) return;
           clean[id] = { op: e.op, v: v, attempts: +e.attempts || 0, nextAt: +e.nextAt || 0 };
           if(e.op === "upload" && e.failed) clean[id].failed = e.failed === "rejected" ? "rejected" : "gaveup";
         });
@@ -3046,8 +3023,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       else localStorage.removeItem(shotQueueKey());
     }catch(e){}
   }
-  // Only a local change that has not reached the cloud protects the local copy.
-  function shotEntryIsPending(entry){ return !!entry && entry.op !== "prune"; }
+  // A local change that has not reached the cloud protects the local copy.
+  function shotEntryIsPending(entry){ return !!entry; }
   function newShotV(){
     return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   }
@@ -3107,14 +3084,6 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(res.error) throw res.error;
     return (res.data || []).filter(function(f){ return f && f.id && f.name; });
   }
-  // Pointer version the cloud has confirmed for a horse (from the last
-  // server-acknowledged snapshot), "" if none.
-  function shotConfirmedCloudV(id){
-    try{
-      var snap = cloudShadow[id];
-      return snap ? screenshotPointerV(JSON.parse(snap)) : "";
-    }catch(e){ return ""; }
-  }
 
   async function processShotQueue(){
     if(!shotSyncActive() || shotQueueBusy) return;
@@ -3142,30 +3111,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
         }
         try{
           if(entry.op === "remove"){
-            var allFiles = await shotListFolder(id);
-            if(allFiles.length){
-              var removed = await shotStorage().remove(allFiles.map(function(f){ return cloudUserId + "/" + id + "/" + f.name; }));
-              if(removed.error) throw removed.error;
-            }
+            var gone = shotPaths(cloudUserId, id);
+            var removed = await shotStorage().remove([gone.thumb, gone.full]);
+            if(removed.error) throw removed.error;
             q = loadShotQueue();
             if(q[id] && q[id].op === "remove") delete q[id];
-            saveShotQueue(q);
-            continue;
-          }
-          if(entry.op === "prune"){
-            // A newer upload or a removal replaced this horse's picture;
-            // that change cleans up after itself.
-            if(!horse || screenshotPointerV(horse) !== entry.v){ delete q[id]; saveShotQueue(q); continue; }
-            // Keep older versions until the cloud confirms the new pointer,
-            // so other devices never point at a deleted file.
-            if(shotConfirmedCloudV(id) !== entry.v) continue;
-            var oldFiles = shotDeletableFiles(await shotListFolder(id), entry.v, "", 0, 0);
-            if(oldFiles.length){
-              var pruned = await shotStorage().remove(oldFiles.map(function(n){ return cloudUserId + "/" + id + "/" + n; }));
-              if(pruned.error) throw pruned.error;
-            }
-            q = loadShotQueue();
-            if(q[id] && q[id].op === "prune" && q[id].v === entry.v) delete q[id];
             saveShotQueue(q);
             continue;
           }
@@ -3183,18 +3133,17 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
             q = markShotFailed(id, "rejected");
             continue;
           }
-          var paths = shotPaths(cloudUserId, id, entry.v);
+          var paths = shotPaths(cloudUserId, id);
           var upThumb = await shotStorage().upload(paths.thumb, dataUrlToBlob(packed.thumb), { upsert: true, contentType: "image/jpeg", cacheControl: "0" });
           if(upThumb.error) throw upThumb.error;
           var upFull = await shotStorage().upload(paths.full, dataUrlToBlob(packed.full), { upsert: true, contentType: "image/jpeg", cacheControl: "0" });
           if(upFull.error) throw upFull.error;
 
           // Only point the horse at the new files if nothing newer happened
-          // to this picture while the upload was running. Otherwise the
-          // newer change's own cleanup removes this unused version.
+          // to this picture while the upload was running.
           var latest = loadShotQueue();
           if(latest[id] && latest[id].op === "upload" && latest[id].v === entry.v){
-            latest[id] = { op: "prune", v: entry.v, attempts: 0, nextAt: 0 };
+            delete latest[id];
             saveShotQueue(latest);
             await saveScreenshot(id, packed.full, packed.thumb, entry.v).catch(function(){});
             var live = findHorse(id);
@@ -3232,8 +3181,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
                 gaveUpNames.push((horse && horse.name) || "Unnamed horse");
                 q = markShotFailed(id, "gaveup");
               } else {
-                // Removal/cleanup gives up quietly; the daily orphan
-                // cleanup removes anything left behind.
+                // Removal gives up quietly; the daily orphan cleanup
+                // removes files of purged horses.
                 delete q[id];
                 saveShotQueue(q);
               }
@@ -3252,7 +3201,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     }finally{
       shotQueueBusy = false;
     }
-    // Uploads and cleanups waiting on a horse sync are picked up again after
+    // Uploads waiting on a horse sync are picked up again after
     // the next horse sync; this timer covers backoff and storage-not-ready.
     if(nextWake > 0 && shotSyncActive()) kickShotQueue(nextWake + 50);
   }
@@ -3291,7 +3240,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     }
     var loading = el("screenshotLoading");
     if(loading) loading.hidden = false;
-    return shotStorage().download(shotPaths(cloudUserId, horse.id, v).thumb).then(function(res){
+    return shotStorage().download(shotPaths(cloudUserId, horse.id).thumb).then(function(res){
       if(res.error || !res.data) throw res.error || new Error("no data");
       return blobToDataUrl(res.data);
     }).then(function(thumb){
@@ -3312,7 +3261,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       // This device's own picture (never uploaded, or not yet) wins.
       if(rec && rec.full && (!v || rec.cloudV === v || shotEntryIsPending(q[horse.id]))) return rec.full;
       if(!v || !shotSyncActive()) return rec ? (rec.full || rec.thumb) : null;
-      return shotStorage().download(shotPaths(cloudUserId, horse.id, v).full).then(function(res){
+      return shotStorage().download(shotPaths(cloudUserId, horse.id).full).then(function(res){
         if(res.error || !res.data) throw res.error || new Error("no data");
         return blobToDataUrl(res.data);
       }).then(function(full){
@@ -3417,29 +3366,28 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     });
   }
 
-  // Every horse row in the stable (active and recently deleted) with its
-  // confirmed picture version. Paged, because the API returns at most
+  // Every horse row in the stable (active and recently deleted). Paged, because the API returns at most
   // 1,000 rows per request and a stable may hold 2,000.
-  async function shotFetchAllHorsePointers(){
+  async function shotFetchAllHorseIds(){
     var out = Object.create(null);
     var PAGE = 1000;
     for(var from = 0; from < 100000; from += PAGE){
       var res = await cloudClient.from("horses")
-        .select("id,shot:data->screenshot")
+        .select("id")
         .eq("stable_id", cloudStableId)
         .order("id", { ascending: true })
         .range(from, from + PAGE - 1);
       if(res.error) throw res.error;
       var rows = res.data || [];
-      rows.forEach(function(r){ out[r.id] = normalizeScreenshotPointer(r.shot); });
+      rows.forEach(function(r){ out[r.id] = true; });
       if(rows.length < PAGE) return out;
     }
     throw new Error("too many horse rows");
   }
 
   // Codex release requirement: remove files left behind by horses that
-  // were purged after their 30-day Recently deleted window, plus older
-  // versions a pruning step missed. Runs at most once a day per device,
+  // were purged after their 30-day Recently deleted window. Runs at most
+  // once a day per device,
   // only touches the signed-in user's own folder, and never deletes
   // anything less than a day old.
   async function shotCleanupOrphans(){
@@ -3450,7 +3398,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       if(Date.now() - last < SHOT_ORPHAN_MIN_AGE_MS) return;
     }catch(e){ return; }
     try{
-      var pointers = await shotFetchAllHorsePointers();
+      var known = await shotFetchAllHorseIds();
       var queued = loadShotQueue();
       var folders = [];
       for(var offset = 0; offset < 100000; offset += 1000){
@@ -3463,23 +3411,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       var now = Date.now();
       for(var i = 0; i < folders.length; i++){
         var horseId = folders[i];
+        if(known[horseId] || queued[horseId]) continue;
         var files;
         try{ files = await shotListFolder(horseId); }catch(e){ continue; }
-        var doomed;
-        if(Object.prototype.hasOwnProperty.call(pointers, horseId)){
-          // Known horse (active or recently deleted): keep its current
-          // version and anything this device is still uploading.
-          var qe = queued[horseId];
-          var cur = pointers[horseId];          // {v}, null (removed) or undefined (unknown)
-          var keepV = cur === null ? null : (cur && cur.v ? cur.v : undefined);
-          doomed = shotDeletableFiles(files, keepV, qe && qe.op === "upload" ? qe.v : "", now, SHOT_ORPHAN_MIN_AGE_MS);
-        } else {
-          var known = Object.create(null);
-          doomed = shotFolderIsOrphan(horseId, known, queued, files, now) ? files.map(function(f){ return f.name; }) : [];
-        }
-        if(doomed.length){
-          await shotStorage().remove(doomed.map(function(n){ return cloudUserId + "/" + horseId + "/" + n; }));
-        }
+        if(!shotFolderIsOrphan(horseId, known, queued, files, now)) continue;
+        await shotStorage().remove(files.map(function(f){ return cloudUserId + "/" + horseId + "/" + f.name; }));
       }
       try{ localStorage.setItem(stampKey, String(Date.now())); }catch(e){}
     }catch(e){ /* best-effort; tries again next load */ }
