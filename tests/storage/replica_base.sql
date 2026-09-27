@@ -16,6 +16,17 @@ alter table storage.objects enable row level security;
 create function storage.foldername(name text) returns text[] language plpgsql immutable as
 $$ declare _parts text[]; begin select string_to_array(name, '/') into _parts; return _parts[1:array_length(_parts,1)-1]; end $$;
 grant execute on function storage.foldername(text) to anon, authenticated;
+-- Same definitions as the live project (read Sept 27): the Storage server sets
+-- storage.operation per request; plain SQL tests leave it unset.
+create function storage.operation() returns text language plpgsql stable as
+$$ begin return current_setting('storage.operation', true); end $$;
+create function storage.allow_only_operation(expected_operation text) returns boolean language sql stable as
+$$ with c as (select storage.operation() as raw_operation),
+   n as (select case when raw_operation like 'storage.%' then substr(raw_operation, 9) else raw_operation end as current_operation,
+                case when expected_operation like 'storage.%' then substr(expected_operation, 9) else expected_operation end as requested_operation from c)
+   select case when requested_operation is null or requested_operation = '' then false
+               else coalesce(current_operation = requested_operation, false) end from n $$;
+grant execute on function storage.operation(), storage.allow_only_operation(text) to anon, authenticated;
 grant all on storage.objects to anon, authenticated; grant select on storage.buckets to anon, authenticated;
 
 create table public.stables(id uuid primary key default gen_random_uuid(), owner_id uuid not null references auth.users(id) on delete cascade,

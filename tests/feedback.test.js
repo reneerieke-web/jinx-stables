@@ -40,9 +40,18 @@ assert.match(fallback, uuidRe, "fallback builds a v4 UUID");
 assert.equal(ctx.feedbackShotPath("aaaa", "bbbb"), "aaaa/bbbb.jpg");
 assert.equal(ctx.feedbackShotUploadDone({ data: {}, error: null }), true);
 assert.equal(ctx.feedbackShotUploadDone({ error: { statusCode: "409", message: "The resource already exists" } }), true, "already uploaded counts as done");
+// Real storage-api v1.11.2 response to a second upload of the same name (HTTP 400, body statusCode 409):
+assert.equal(ctx.feedbackShotUploadDone({ error: { status: 400, statusCode: "409", error: "Duplicate", message: "The resource already exists" } }), true);
+assert.equal(ctx.feedbackShotUploadDone({ error: { status: 400, statusCode: "400", message: "Asset Already Exists" } }), true, "400 Asset Already Exists counts as done");
 assert.equal(ctx.feedbackShotUploadDone({ error: { statusCode: "403", message: "new row violates row-level security policy" } }), false);
+assert.equal(ctx.feedbackShotUploadDone({ error: { status: 400, statusCode: "400", message: "new row violates row-level security policy" } }), false, "a plain 400 is not done");
 assert.equal(ctx.feedbackShotUploadDone({ error: { statusCode: "413", message: "The object exceeded the maximum allowed size" } }), false);
 assert.equal(ctx.feedbackShotUnsupported({ code: "42501", message: "permission denied for table feedback" }), true);
 assert.equal(ctx.feedbackShotUnsupported({ code: "PGRST204", message: "Could not find the 'has_screenshot' column of 'feedback' in the schema cache" }), true);
 assert.equal(ctx.feedbackShotUnsupported({ code: "P0001", message: "Feedback limit reached: at most 20 reports per day." }), false);
+assert.equal(ctx.feedbackShotInputProblem(3 * 1024 * 1024, "image/png"), "");
+assert.equal(ctx.feedbackShotInputProblem(3 * 1024 * 1024, ""), "", "some phones give no type; compression decides");
+assert.match(ctx.feedbackShotInputProblem(20 * 1024 * 1024 + 1, "image/jpeg"), /over 20 MB/);
+assert.match(ctx.feedbackShotInputProblem(1000, "application/pdf"), /choose an image/);
+assert.match(ctx.feedbackShotInputProblem(0, "image/jpeg"), /empty/);
 console.log("feedback helper tests passed");

@@ -486,6 +486,10 @@ async function openHorse(page, name) {
   assert.equal(await A.isVisible("#fbShotPreview"), false);
   assert.ok(/attach a screenshot right here/.test(await A.textContent("#modalBox")), "new wording");
   assert.ok(!/Send it to Renee on Discord/.test(await A.textContent("#modalBox")), "old Discord wording gone");
+  await A.setInputFiles("#fbShotInput", { name: "huge.png", mimeType: "image/png", buffer: Buffer.alloc(21 * 1024 * 1024) });
+  await A.waitForSelector("#fbShotError:not([hidden])");
+  assert.match(await A.textContent("#fbShotError"), /over 20 MB/, "huge file refused before reading");
+  assert.equal(await A.isVisible("#fbShotPreview"), false);
   await A.setInputFiles("#fbShotInput", bigPng);
   await A.waitForSelector("#fbShotPreview:not([hidden])");
   await A.click("#fbShotRemove");

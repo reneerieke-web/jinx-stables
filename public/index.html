@@ -4477,6 +4477,15 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   var FEEDBACK_SHOT_MAX = 1600;               // longest side, px
   var FEEDBACK_SHOT_TARGET = 700 * 1024;      // compression goal
   var FEEDBACK_SHOT_HARD = 800 * 1024;        // bucket file_size_limit
+  var FEEDBACK_SHOT_INPUT_MAX = 20 * 1024 * 1024; // refuse bigger originals before reading them
+  // Checked before FileReader so a huge file is never loaded into memory.
+  // Returns a message for the user, or "" when the file may be read.
+  function feedbackShotInputProblem(size, type){
+    if(type && !/^image\//i.test(type)) return "Please choose an image.";
+    if(!(size > 0)) return "That file is empty. Please choose another picture.";
+    if(size > FEEDBACK_SHOT_INPUT_MAX) return "That file is over 20 MB. Please choose a smaller picture or a screenshot.";
+    return "";
+  }
   function feedbackNewId(cryptoObj){
     if(cryptoObj && typeof cryptoObj.randomUUID === "function") return cryptoObj.randomUUID();
     var b = new Uint8Array(16);
@@ -4557,7 +4566,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       var file = this.files && this.files[0];
       if(!file) return;
       showShotError("");
-      if(file.type && !/^image\//i.test(file.type)){ showShotError("Please choose an image."); return; }
+      var problem = feedbackShotInputProblem(file.size, file.type);
+      if(problem){ showShotError(problem); this.value = ""; return; }
       shotBusy = true; el("fbSend").disabled = true;
       el("fbShotAdd").textContent = "Preparing…";
       var reader = new FileReader();

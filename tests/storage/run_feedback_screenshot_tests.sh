@@ -6,6 +6,8 @@
 #   psql -d fbs -f supabase/review/20260927_feedback.sql
 #   psql -d fbs -f supabase/review/20260927_feedback_screenshots.sql
 #   bash tests/storage/run_feedback_screenshot_tests.sh fbs   (socket /tmp/pgreplica, port 5499)
+# Real Storage API checks: tests/storage/run_storage_api_it.sh. Parallel limit test:
+# tests/storage/run_feedback_parallel_test.sh.
 DB=$1; P="psql -h /tmp/pgreplica -p 5499 -U postgres -d $DB -qtA"
 A=aaaaaaaa-0000-0000-0000-000000000001; B=bbbbbbbb-0000-0000-0000-000000000002
 R1=a1000000-0000-4000-8000-000000000001   # A's report with a screenshot
@@ -52,13 +54,21 @@ t deny $A "path trick ../"                                              "$(up $A
 t deny $A "extra folder level"                                          "$(up $A/x/$R1.jpg)"
 t deny $A "different extension"                                         "$(up $A/$R1.png)"
 t deny $A "feedback path into the horse bucket"                         "$(up $A/$R1.jpg horse-screenshots)"
-t deny $A "helper answers only for the caller's own report"            "select count(*) where public.feedback_screenshot_upload_allowed('$B/$RB.jpg')"
+t deny $A "helper answers only for the caller's own report"            "select count(*) where private.feedback_screenshot_upload_allowed('$B/$RB.jpg')"
 t ok   $B "B uploads its own picture"                                   "$(up $B/$RB.jpg)"
 t deny $A "A reads B's picture"                                         "select count(*) from storage.objects where name='$B/$RB.jpg'"
 t deny anon "anon uploads"                                              "$(up $A/$R1.jpg)"
 t deny anon "anon reads feedback pictures"                              "select count(*) from storage.objects where bucket_id='feedback-screenshots'"
-t deny anon "anon calls the helper"                                     "select count(*) where public.feedback_screenshot_upload_allowed('$A/$R1.jpg')"
-t deny $A "A calls the screenshot-limit trigger function directly"      "select public.enforce_feedback_screenshot_limit()"
+t deny anon "anon calls the helper"                                     "select count(*) where private.feedback_screenshot_upload_allowed('$A/$R1.jpg')"
+t deny $A "A calls the screenshot-limit trigger function directly"      "select private.enforce_feedback_screenshot_limit()"
+t deny $A "A calls the per-user lock helper directly"                 "select private.feedback_lock_user('$A')"
+t deny $A "A calls the 20/day trigger function directly"                "select private.enforce_feedback_rate_limit()"
+t deny anon "anon uses the private schema"                               "select count(*) where private.feedback_screenshot_upload_allowed('$A/$R1.jpg')"
+t deny $A "upload-read policy never matches outside an upload"          "select count(*) from storage.objects where bucket_id='feedback-screenshots' and name='$A/$R1.jpg'"
+t ok   $A "upload-read policy matches only in the upload operation"     "select set_config('storage.operation','storage.object.upload',true); select count(*) from storage.objects where bucket_id='feedback-screenshots' and name='$A/$R1.jpg'"
+t deny $A "...and not in the list operation"                            "select set_config('storage.operation','storage.object.list',true); select count(*) from storage.objects where bucket_id='feedback-screenshots'"
+t deny $A "...and not in a download (get_authenticated)"                "select set_config('storage.operation','storage.object.get_authenticated',true); select count(*) from storage.objects where bucket_id='feedback-screenshots'"
+t deny $A "...and not for B's picture during an upload"                 "select set_config('storage.operation','storage.object.upload',true); select count(*) from storage.objects where name='$B/$RB.jpg'"
 
 # Screenshot limit: 5 flagged reports per 24h (R1 and R3 already count).
 for i in 4 5 6; do $P -c "begin; set role authenticated; set request.jwt.claim.sub='$A'; $(rep a900000$i-0000-4000-8000-000000000000 true); commit;" >/dev/null; done
