@@ -685,6 +685,11 @@
     <button id="dismissStorageWarn">Got it</button>
   </div>
 
+  <div class="banner" id="cloudLimitBanner" role="alert" hidden>
+    <span id="cloudLimitBannerText"></span>
+    <button id="dismissCloudLimit">Got it</button>
+  </div>
+
   <div class="tabs" id="capsuleTabs"></div>
 
   <div class="filters">
@@ -1938,6 +1943,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     storageWarnBanner.hidden = true;
     try{ localStorage.setItem(STORAGE_WARN_SEEN_KEY, "1"); }catch(e){}
   });
+  document.getElementById("dismissCloudLimit").addEventListener("click", function(){
+    document.getElementById("cloudLimitBanner").hidden = true;
+  });
   document.getElementById("clearSample").addEventListener("click", function(){
     horses = [];
     showingSample = false;
@@ -2212,12 +2220,96 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       return "This horse has too much information to save. Shorten its notes or history, then try again (32 KB maximum).";
     }
     if(code === "P0001" && detail.indexOf("2,000 horse rows") >= 0){
-      return "This stable has reached its 2,000-horse cloud limit. Remove a horse before adding another.";
+      return "This stable has reached its 2,000-horse cloud limit. Recently deleted horses still count until they are purged after 30 days.";
     }
     if(code === "23514" && (constraint === "stables_name_max_100_chars" || detail.indexOf("stables_name_max_100_chars") >= 0)){
       return "The stable name is too long to save. Use 100 characters or fewer.";
     }
     return "";
+  }
+
+  var CLOUD_SNAPSHOT_SAFE_BYTES = 26000;
+
+  function utf8ByteLength(textValue){
+    var text = String(textValue || "");
+    if(typeof TextEncoder !== "undefined") return new TextEncoder().encode(text).length;
+    return new Blob([text]).size;
+  }
+
+  function cloudDirtyUpsertPlan(dirty){
+    var send = [];
+    var blockedSnapshots = Object.create(null);
+    var blockedNames = [];
+    Object.keys((dirty && dirty.upserts) || {}).forEach(function(id){
+      var snapshot = dirty.upserts[id];
+      var item = { id:id, snapshot:snapshot };
+      if(utf8ByteLength(snapshot) > CLOUD_SNAPSHOT_SAFE_BYTES){
+        blockedSnapshots[id] = snapshot;
+        try{
+          var parsed = JSON.parse(snapshot);
+          blockedNames.push(String((parsed && parsed.name) || "Unnamed horse"));
+        }catch(e){
+          blockedNames.push("Unnamed horse");
+        }
+      } else {
+        send.push(item);
+      }
+    });
+    return { send:send, blockedSnapshots:blockedSnapshots, blockedNames:blockedNames };
+  }
+
+  function oversizedHorseMessage(names){
+    var quoted = (names || []).map(function(name){ return "“" + name + "”"; });
+    if(quoted.length === 1){
+      return quoted[0] + " has too much information to save safely. Shorten its notes or history, then try again.";
+    }
+    return "These horses have too much information to save safely: " + quoted.join(", ") + ". Shorten their notes or history, then try again.";
+  }
+
+  function showCloudLimitNotice(message){
+    setCloudStatus(message, "error");
+    var banner = document.getElementById("cloudLimitBanner");
+    var text = document.getElementById("cloudLimitBannerText");
+    if(text) text.textContent = message;
+    if(banner) banner.hidden = false;
+  }
+
+  function hideCloudLimitNotice(){
+    var banner = document.getElementById("cloudLimitBanner");
+    if(banner) banner.hidden = true;
+  }
+
+  function hasRetryableCloudDirty(blockedSnapshots){
+    if(Object.keys(cloudDirty.deletes || {}).length) return true;
+    return Object.keys(cloudDirty.upserts || {}).some(function(id){
+      return !blockedSnapshots || blockedSnapshots[id] !== cloudDirty.upserts[id];
+    });
+  }
+
+  function mergeCloudDirtyIntoRoster(active, dirty){
+    var merged = (active || []).slice();
+    var positions = Object.create(null);
+    merged.forEach(function(h, index){ positions[h.id] = index; });
+
+    Object.keys((dirty && dirty.deletes) || {}).forEach(function(id){
+      if(positions[id] === undefined) return;
+      merged.splice(positions[id], 1);
+      positions = Object.create(null);
+      merged.forEach(function(h, index){ positions[h.id] = index; });
+    });
+    Object.keys((dirty && dirty.upserts) || {}).forEach(function(id){
+      try{
+        var h = JSON.parse(dirty.upserts[id]);
+        h.id = id;
+        if(positions[id] === undefined){
+          positions[id] = merged.length;
+          merged.push(h);
+        } else {
+          merged[positions[id]] = h;
+        }
+      }catch(e){}
+    });
+    return merged;
   }
 
   function loadCloudCache(userId){
@@ -2320,12 +2412,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   }
 
   async function pushCloudDirtyBatch(){
-    if(!cloudUserId || !cloudStableId) return;
+    if(!cloudUserId || !cloudStableId) return { blockedSnapshots:Object.create(null), blockedNames:[] };
     cloudDirty = loadCloudDirty(cloudUserId);
 
-    var sentUpserts = Object.keys(cloudDirty.upserts).map(function(id){
-      return { id:id, snapshot:cloudDirty.upserts[id] };
-    });
+    var upsertPlan = cloudDirtyUpsertPlan(cloudDirty);
+    var sentUpserts = upsertPlan.send;
 
     if(sentUpserts.length){
       var payload = sentUpserts.map(function(item){
@@ -2384,6 +2475,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       cloudDirty = latestAfterDelete;
       saveCloudDirty();
     }
+    return { blockedSnapshots:upsertPlan.blockedSnapshots, blockedNames:upsertPlan.blockedNames };
   }
 
   async function syncCloudNow(){
@@ -2394,21 +2486,26 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     setCloudStatus("Saving…", "saving");
     try{
       captureCloudDirtyFromCurrent();
-      if(hasCloudDirty()) await pushCloudDirtyBatch();
+      var pushResult = { blockedSnapshots:Object.create(null), blockedNames:[] };
+      if(hasCloudDirty()) pushResult = await pushCloudDirtyBatch();
 
       // Re-capture after the network request. An edit/delete can happen while
       // the request is in flight; this ensures it stays queued for the next run.
       captureCloudDirtyFromCurrent();
-      if(hasCloudDirty()){
+      if(pushResult.blockedNames.length){
+        showCloudLimitNotice(oversizedHorseMessage(pushResult.blockedNames));
+        cloudSyncQueued = hasRetryableCloudDirty(pushResult.blockedSnapshots);
+      } else if(hasCloudDirty()){
         cloudSyncQueued = true;
         setCloudStatus("Saving…", "saving");
       } else {
+        hideCloudLimitNotice();
         setCloudStatus("Cloud saved", "saved");
       }
     }catch(err){
       var limitMessage = cloudLimitErrorMessage(err);
       if(limitMessage){
-        setCloudStatus(limitMessage, "error");
+        showCloudLimitNotice(limitMessage);
         cloudSyncQueued = false;
       } else {
         setCloudStatus("Cloud save failed — retrying", "error");
@@ -2593,18 +2690,32 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     try{
       var stable = await ensureCloudStable(user);
       cloudStableId = stable.id;
+      var connectLimitMessage = "";
 
       // Never overwrite locally confirmed-but-unsent work with a pull.
       // Finish the persisted queue first, then fetch the server's final state.
       if(hasCloudDirty()){
         cloudReady = true;
         setCloudStatus("Finishing saved changes…", "saving");
-        await pushCloudDirtyBatch();
+        try{
+          var connectPushResult = await pushCloudDirtyBatch();
+          if(connectPushResult.blockedNames.length){
+            connectLimitMessage = oversizedHorseMessage(connectPushResult.blockedNames);
+          }
+        }catch(pushErr){
+          connectLimitMessage = cloudLimitErrorMessage(pushErr);
+          if(!connectLimitMessage) throw pushErr;
+        }
       }
 
       var roster = await fetchCloudRoster();
       cloudReady = true;
       cloudDirty = loadCloudDirty(user.id);
+      if(connectLimitMessage){
+        // The server copy is still the baseline, but unsent local snapshots
+        // must remain visible so the user can shorten or otherwise fix them.
+        roster.active = mergeCloudDirtyIntoRoster(roster.active, cloudDirty);
+      }
 
       var requestedAction = getPendingLaunchAction();
       if(requestedAction) clearPendingLaunchAction();
@@ -2641,6 +2752,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       } else {
         finishCloudLoad(roster.active, roster.rows.length > 0);
       }
+      if(connectLimitMessage) showCloudLimitNotice(connectLimitMessage);
     }catch(err){
       cloudReady = false;
       var cached = loadCloudCache(user.id);

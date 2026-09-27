@@ -1,6 +1,6 @@
 # Jinx’s Stables — Project Status
 
-Updated: September 26, 2026 (ET)
+Updated: September 27, 2026 (ET)
 
 ## Baton
 
@@ -48,6 +48,8 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch finished: Renee signed in successfully at `https://jinxsstables.com`, confirmed all 77 horses, and confirmed the cloud save completed.
 - Pearl Abyss's recommended fan-content statement was added verbatim to the site footer and welcome-screen disclaimer while retaining the existing “Independent fan-made tool…” wording. Renee approved the exact wording for production.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
+- Claude approved the proposed data-limit SQL after replica tests covering the 2,000-row boundary, existing-row upserts at the limit, 32 KB horse data, 100-character stable names, RLS isolation, and direct function-call denial. The SQL remains review-only and has not been applied to Supabase.
+- App-side limit handling now keeps an unsaved limit-rejected horse local and editable during account connection, excludes UTF-8 snapshots over 26,000 bytes without blocking other queued saves, names excluded horses in a phone-visible banner, and explains that Recently deleted horses count toward 2,000 until their 30-day purge. This protected sync change awaits Claude review before any SQL application.
 
 ## Security checkpoint
 
@@ -58,7 +60,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Review the proposed data-size safeguards in `supabase/review/20260927_data_size_limits.sql` and the accompanying friendly cloud-save errors. The proposal covers 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name. **Nothing has been run against Supabase; Claude reviews the SQL before Renee approves any application.**
+1. Claude reviews the protected app-side limit handling. After his approval and Renee's separate approval to apply the already-reviewed SQL, walk Renee through the Supabase dashboard one step at a time. The proposal covers 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name. **Nothing has been run against Supabase.**
 2. Add the privacy note to the site footer.
 3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
 4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
