@@ -46,6 +46,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch Step 4, Cloudflare `www` completed: with Renee's separate approval, `www.jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response. Both Cloudflare custom domains are now attached.
 - Launch Step 4, Supabase Auth completed: with Renee's separate approval, the Site URL was changed to `https://jinxsstables.com`, and exact redirect URLs for `https://jinxsstables.com` and `https://www.jinxsstables.com` were added while retaining both existing workers.dev redirect URLs.
 - Launch finished: Renee signed in successfully at `https://jinxsstables.com`, confirmed all 77 horses, and confirmed the cloud save completed.
+- Pearl Abyss's recommended fan-content statement was added verbatim to the site footer and welcome-screen disclaimer while retaining the existing “Independent fan-made tool…” wording. Renee approved the exact wording for production.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
@@ -67,6 +68,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 - Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
 - Optional White color group.
+- Optional donation button, after confirming the implementation follows Pearl Abyss's fan-content requirements.
 
 ## Tester invite note
 
