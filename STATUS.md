@@ -8,7 +8,7 @@ Updated: September 26, 2026 (ET)
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `6543f03` — SheetJS 0.20.3 core upgrade and spreadsheet import limits, following tier XSS fix `77a17b0`
-- **Production head:** `b3175a8` — `main` fast-forwarded to the approved `cloud-sync-preview` release; this follow-up status commit records the completed production verification
+- **Production head:** `main` is fast-forwarded to the approved launch release and its completed domain-launch documentation checkpoint
 - **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update; Renee approved the resulting preview on phone and desktop
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
@@ -44,6 +44,8 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch Step 3 completed: `main` was fast-forwarded to the approved release at `b3175a8`. Production displayed the current welcome screen and Discord sign-in, and Renee confirmed the signed-in production stable on both phone and desktop with 77 total horses.
 - Launch Step 4, Cloudflare apex completed: with Renee's approval, `jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response.
 - Launch Step 4, Cloudflare `www` completed: with Renee's separate approval, `www.jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response. Both Cloudflare custom domains are now attached.
+- Launch Step 4, Supabase Auth completed: with Renee's separate approval, the Site URL was changed to `https://jinxsstables.com`, and exact redirect URLs for `https://jinxsstables.com` and `https://www.jinxsstables.com` were added while retaining both existing workers.dev redirect URLs.
+- Launch finished: Renee signed in successfully at `https://jinxsstables.com`, confirmed all 77 horses, and confirmed the cloud save completed.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
@@ -55,13 +57,16 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Complete the remaining custom-domain steps, each with Renee's separate approval: update the Supabase Site URL, then add the apex and `www` redirect URLs while retaining the workers.dev entries.
-2. Add screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
-3. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+1. Add approved data-size safeguards: 32 KB per horse, 2,000 horses per stable, and 100 characters per stable name, with a friendly app error when a save is rejected. Claude reviews the SQL before anything is run against Supabase.
+2. Add the privacy note to the site footer.
+3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
+4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+5. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
 
-- Prevent iOS from offering “AutoFill Contact” on the horse Name field: add `autocomplete="off"` and a non-person `name`/`id` hint so Safari does not interpret it as a person's name.
+- Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
+- Optional White color group.
 
 ## Tester invite note
 
@@ -69,6 +74,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Decisions still open for Renee
 
+- Whether to hide the Red/White/Black boxes in the editor.
 - What “Ultimate horse” means for the advisor.
 - Whether let-go suggestions should lean toward silver from the Horse Market or Flowers of Oblivion from Imperial delivery.
 
