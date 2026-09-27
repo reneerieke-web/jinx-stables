@@ -2198,6 +2198,28 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     node.setAttribute("data-state", stateValue || "idle");
   }
 
+  function cloudLimitErrorMessage(err){
+    var code = String((err && err.code) || "");
+    var constraint = String((err && err.constraint) || "");
+    var detail = [
+      err && err.message,
+      err && err.details,
+      err && err.hint,
+      constraint
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    if(code === "23514" && (constraint === "horses_data_max_32kb" || detail.indexOf("horses_data_max_32kb") >= 0)){
+      return "This horse has too much information to save. Shorten its notes or history, then try again (32 KB maximum).";
+    }
+    if(code === "P0001" && detail.indexOf("2,000 horse rows") >= 0){
+      return "This stable has reached its 2,000-horse cloud limit. Remove a horse before adding another.";
+    }
+    if(code === "23514" && (constraint === "stables_name_max_100_chars" || detail.indexOf("stables_name_max_100_chars") >= 0)){
+      return "The stable name is too long to save. Use 100 characters or fewer.";
+    }
+    return "";
+  }
+
   function loadCloudCache(userId){
     try{
       var raw = localStorage.getItem(STORE_KEY + ".cloud." + userId);
@@ -2384,8 +2406,14 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
         setCloudStatus("Cloud saved", "saved");
       }
     }catch(err){
-      setCloudStatus("Cloud save failed — retrying", "error");
-      cloudSyncQueued = true;
+      var limitMessage = cloudLimitErrorMessage(err);
+      if(limitMessage){
+        setCloudStatus(limitMessage, "error");
+        cloudSyncQueued = false;
+      } else {
+        setCloudStatus("Cloud save failed — retrying", "error");
+        cloudSyncQueued = true;
+      }
     }finally{
       cloudSyncInFlight = false;
       if(cloudSyncQueued){
@@ -2616,12 +2644,13 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     }catch(err){
       cloudReady = false;
       var cached = loadCloudCache(user.id);
+      var limitMessage = cloudLimitErrorMessage(err);
       if(authStatus){
-        authStatus.textContent = cached && cached.length
+        authStatus.textContent = limitMessage || (cached && cached.length
           ? "Couldn’t reach the cloud. Your cached stable and any unsent edits are still on this device; reconnect before editing so nothing gets out of sync."
-          : "Couldn’t load your cloud stable. Check your connection and refresh to try again.";
+          : "Couldn’t load your cloud stable. Check your connection and refresh to try again.");
       }
-      setCloudStatus("Cloud unavailable", "error");
+      setCloudStatus(limitMessage || "Cloud unavailable", "error");
       document.getElementById("authGate").hidden = false;
     }finally{
       cloudConnectingFor = null;

@@ -58,7 +58,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Add approved data-size safeguards: 32 KB per horse, 2,000 horses per stable, and 100 characters per stable name, with a friendly app error when a save is rejected. Claude reviews the SQL before anything is run against Supabase.
+1. Review the proposed data-size safeguards in `supabase/review/20260927_data_size_limits.sql` and the accompanying friendly cloud-save errors. The proposal covers 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name. **Nothing has been run against Supabase; Claude reviews the SQL before Renee approves any application.**
 2. Add the privacy note to the site footer.
 3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
 4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
