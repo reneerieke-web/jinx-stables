@@ -84,7 +84,10 @@ Release sequence (agreed Sept 27; finish what is built, no new features):
 2. Security: ~~Claude's database-level storage test~~ passed Sept 27 (see Done). Still to do: Mini's live test through the app with a separate Discord test account.
 3. ~~Real-device tests~~ passed Sept 27 (see Done), including the stale-picture fix `061b812`.
 4. Migration test: **not tested.** A new visitor cannot create or keep a local stable without signing in, so an authentic pre-cloud local roster could not be reproduced. Renee decided not to build a guest workflow just for this test. Whether guests should keep horses without signing in is a later product decision.
-5. **NOW: beta with the four testers** on `cloud-sync-preview` at `061b812` (plus docs-only commits). Tester guide: `docs/beta-tester-guide.md`. Plain player tasks, no expected results given. Only release blockers change code during beta.
+5. **NOW: community beta** (started Sept 27; unknown tester count). Renee shared www.jinxsstables.com in three BDO guild Discords. Two tracks:
+   - **Production track:** www.jinxsstables.com serves Production (`main` at `61a2b41`: Discord sign-in, cloud saving, data limits, security fixes; screenshots stay on the device they were added on, no sync). Feedback from here counts as general/core-app community beta feedback. Production stays untouched during beta.
+   - **Preview track:** `https://cloud-sync-preview-jinx-stables.renee-rieke.workers.dev/` serves `cloud-sync-preview` (screenshot sync and the cache fix `061b812`, plus docs). Renee shares this link separately when she wants testers on screenshot sync and new features. Tester guide: `docs/beta-tester-guide.md`.
+   - Both tracks use the same Supabase database, so a tester's stable is the same on both. Only release blockers change code during beta. Do not use "Restore App Backup (JSON)" on Production (it drops picture links).
 6. Fix release blockers only; record usability items and ideas.
 7. Release-candidate freeze: one exact `cloud-sync-preview` SHA. Nobody changes it. Claude reviews, Codex reviews, Renee and testers test that SHA.
 8. Fast-forward `main` to that exact SHA.
