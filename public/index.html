@@ -2267,8 +2267,12 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     return "These horses have too much information to save safely: " + quoted.join(", ") + ". Shorten their notes or history, then try again.";
   }
 
+  // The header status stays short so it never collides with the title;
+  // the full explanation lives only in the banner (role="alert").
+  var CLOUD_LIMIT_STATUS = "Cloud save blocked";
+
   function showCloudLimitNotice(message){
-    setCloudStatus(message, "error");
+    setCloudStatus(CLOUD_LIMIT_STATUS, "error");
     var banner = document.getElementById("cloudLimitBanner");
     var text = document.getElementById("cloudLimitBannerText");
     if(text) text.textContent = message;
@@ -2763,7 +2767,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
           ? "Couldn’t reach the cloud. Your cached stable and any unsent edits are still on this device; reconnect before editing so nothing gets out of sync."
           : "Couldn’t load your cloud stable. Check your connection and refresh to try again.");
       }
-      setCloudStatus(limitMessage || "Cloud unavailable", "error");
+      setCloudStatus(limitMessage ? CLOUD_LIMIT_STATUS : "Cloud unavailable", "error");
       document.getElementById("authGate").hidden = false;
     }finally{
       cloudConnectingFor = null;

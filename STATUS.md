@@ -4,8 +4,9 @@ Updated: September 27, 2026 (ET)
 
 ## Baton
 
-- **Current builder:** Codex
-- **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
+- **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
+- **Backup builder:** Codex
+- **Claude's working branch:** `claude/cloud-limit-warning-fix` (waiting for Codex review; not merged into `cloud-sync-preview`)
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
@@ -53,6 +54,9 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Data-limit Step 1 completed: after Claude's approval, `main` was fast-forwarded to `61a2b41`. The production branch now contains the protected app-side handling before the database limits are applied.
 - Data-limit Step 2 completed: with Renee's approval, she ran `supabase/review/20260927_data_size_limits.sql` in the production Supabase SQL Editor. Supabase reported `Success. No rows returned`, confirming that the transaction committed without an SQL error.
 - Data-limit Step 3 verified read-only by Claude: both CHECK constraints exist and are validated; `enforce_horses_per_stable_limit` is enabled on `public.horses` as a BEFORE INSERT trigger; function EXECUTE is limited to `postgres` and `service_role`; and all 77 existing horse rows pass, with a maximum stored JSON size of 2,470 bytes. Production `main` remains at `61a2b41`, so the app-side limit handling was live before database enforcement began.
+- Screenshot sync plan approved by Renee with decisions A, B, C = yes; committed as `docs/screenshot-sync-plan.md` (`8f4116d`).
+- Warning overlap fixed by Claude (`35da65f`, on `claude/cloud-limit-warning-fix`, awaiting Codex review): the header `#cloudStatus` now says only "Cloud save blocked" and the full message lives only in `#cloudLimitBanner`. Regression test added; overlap reproduced at 1280 and 700 px on the old code and gone after; phone header unchanged.
+- Screenshot storage migration written as review-only `supabase/review/20260927_screenshot_storage.sql` (`c74681c`). **Not applied.** Read-only checks first confirmed no existing buckets or storage policies and that all horse ids fit the path rule.
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 
 ## Security checkpoint
@@ -64,11 +68,11 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Fix the long cloud-limit warning text overlapping the title; this is logged but not yet fixed and must be completed before screenshot-sync work begins.
-2. Claude drafts the screenshot-sync plan for Renee to approve before implementation.
+1. Codex reviews `claude/cloud-limit-warning-fix` (warning fix and the storage SQL). After approval, fast-forward `cloud-sync-preview`.
+2. Renee decides whether and when to apply `20260927_screenshot_storage.sql`. No Supabase change without her explicit OK.
 3. Add the privacy note to the site footer.
 4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-5. After plan approval, build screenshot sync with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+5. Build screenshot sync (plan sections 3 to 7) with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
 6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog

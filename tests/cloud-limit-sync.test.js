@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync("public/index.html", "utf8");
-const start = html.indexOf("  function cloudLimitErrorMessage(err){");
+const start = html.indexOf("  function setCloudStatus(textValue, stateValue){");
 const end = html.indexOf("  function loadCloudCache(userId){", start);
 assert.ok(start >= 0 && end > start, "cloud limit helpers are present");
 
@@ -65,5 +65,22 @@ assert.match(
   context.cloudLimitErrorMessage({ code: "P0001", message: "stable cannot exceed 2,000 horse rows" }),
   /Recently deleted horses still count until they are purged after 30 days/
 );
+
+// The header status must stay short; the full message goes only to the banner.
+const nodes = {
+  cloudStatus: { textContent: "", attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } },
+  cloudLimitBanner: { hidden: true },
+  cloudLimitBannerText: { textContent: "" }
+};
+context.document = { getElementById: (id) => nodes[id] || null };
+const longMessage = context.oversizedHorseMessage(["A Very Long Horse Name", "Another Long Name"]);
+context.showCloudLimitNotice(longMessage);
+assert.equal(nodes.cloudStatus.textContent, "Cloud save blocked");
+assert.ok(nodes.cloudStatus.textContent.length <= 20, "header status stays short");
+assert.equal(nodes.cloudStatus.attrs["data-state"], "error");
+assert.equal(nodes.cloudLimitBannerText.textContent, longMessage, "banner carries the full message");
+assert.equal(nodes.cloudLimitBanner.hidden, false);
+context.hideCloudLimitNotice();
+assert.equal(nodes.cloudLimitBanner.hidden, true);
 
 console.log("cloud limit sync tests passed");
