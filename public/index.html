@@ -288,6 +288,8 @@
   .auth-provider-actions .btn{flex:1;}
   @media (max-width:640px){.auth-provider-actions{flex-direction:column;}}
   #cloudStatus{font-size:12px; color:var(--text-soft); align-self:center; white-space:nowrap;}
+  .shot-full-overlay{position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.88); display:flex; align-items:center; justify-content:center; padding:16px; cursor:zoom-out;}
+  .shot-full-overlay img{max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;}
   #cloudStatus[data-state="saving"]{color:var(--gold);}
   #cloudStatus[data-state="error"]{color:var(--danger);}
   #cloudStatus[data-state="saved"]{color:var(--keeper);}
@@ -689,6 +691,11 @@
   <div class="banner" id="cloudLimitBanner" role="alert" hidden>
     <span id="cloudLimitBannerText"></span>
     <button id="dismissCloudLimit">Got it</button>
+  </div>
+
+  <div class="banner" id="shotSyncBanner" role="alert" hidden>
+    <span id="shotSyncBannerText"></span>
+    <button id="dismissShotSync">Got it</button>
   </div>
 
   <div class="tabs" id="capsuleTabs"></div>
@@ -1259,12 +1266,16 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     });
     return mediaDbPromise;
   }
-  function saveScreenshot(horseId, fullDataUrl, thumbDataUrl){
+  // cloudV (optional) records which cloud upload this cached copy matches.
+  // It is absent for pictures that exist only on this device.
+  function saveScreenshot(horseId, fullDataUrl, thumbDataUrl, cloudV){
     return openMediaDb().then(function(db){
       return new Promise(function(resolve, reject){
         try{
           var tx = db.transaction(MEDIA_STORE, "readwrite");
-          tx.objectStore(MEDIA_STORE).put({ horseId: horseId, full: fullDataUrl, thumb: thumbDataUrl, addedDate: today() });
+          var rec = { horseId: horseId, full: fullDataUrl, thumb: thumbDataUrl, addedDate: today() };
+          if(cloudV) rec.cloudV = cloudV;
+          tx.objectStore(MEDIA_STORE).put(rec);
           tx.oncomplete = function(){ resolve(); };
           tx.onerror = function(){ reject(tx.error); };
         } catch(e){ reject(e); }
@@ -1329,6 +1340,20 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       } catch(e){ reject(e); }
     });
   }
+  // Plan section 4 compression, used for every new screenshot (guest or
+  // signed in): full image capped at 1280 px, stepping JPEG quality down
+  // until it is under 500 KB; thumbnail 320 px at 0.7.
+  function compressScreenshot(dataUrl){
+    var qualities = [0.8, 0.7, 0.6];
+    function attempt(i){
+      return downscaleImage(dataUrl, SHOT_FULL_MAX, qualities[i]).then(function(full){
+        if(dataUrlByteLength(full) <= SHOT_TARGET_BYTES || i === qualities.length - 1) return full;
+        return attempt(i + 1);
+      });
+    }
+    return Promise.all([attempt(0), downscaleImage(dataUrl, SHOT_THUMB_MAX, 0.7)])
+      .then(function(results){ return { full: results[0], thumb: results[1] }; });
+  }
   // Cache of which horse ids currently have a screenshot, so cards can show
   // a small camera badge synchronously instead of hitting IndexedDB per
   // card on every render. Populated once at startup and kept up to date by
@@ -1341,6 +1366,91 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     }).catch(function(){ /* IndexedDB unavailable — badges just won't show */ });
   }
   function hasScreenshot(horseId){ return !!screenshotIdSet[horseId]; }
+
+  // ---------- Screenshot cloud sync: pure helpers ----------
+  // Signed-in users get their screenshots copied to a private Supabase
+  // Storage bucket so their other devices can see them (plan:
+  // docs/screenshot-sync-plan.md). The horse record carries only a small
+  // pointer, `screenshot: {v}` (v = upload stamp) or `null` after an
+  // explicit removal. A missing field means "no information" (an older app
+  // version or a horse that never had a synced picture) and never clears a
+  // device's local copy. Guest mode never touches any of this.
+  var SHOT_BUCKET = "horse-screenshots";
+  var SHOT_FULL_MAX = 1280;
+  var SHOT_THUMB_MAX = 320;
+  var SHOT_TARGET_BYTES = 500 * 1024;   // compression goal for full.jpg
+  var SHOT_HARD_BYTES = 600 * 1024;     // bucket file_size_limit
+  var SHOT_ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+  var SHOT_UNREADABLE_MSG = "Couldn't read that image. This browser may not open iPhone HEIC photos; try a JPG or PNG screenshot, or share the photo as “Most Compatible.”";
+  var SHOT_MAX_ATTEMPTS = 12;           // real server failures before giving up (~1.5 h of backoff)
+
+  function normalizeScreenshotPointer(p){
+    if(p === null) return null;
+    if(p && typeof p === "object" && typeof p.v === "string" && /^[0-9A-Za-z:.\-]{1,40}$/.test(p.v)){
+      return { v: p.v };
+    }
+    return undefined;
+  }
+  function screenshotPointerV(h){
+    var p = h ? normalizeScreenshotPointer(h.screenshot) : undefined;
+    return p && p.v ? p.v : "";
+  }
+  function shotIdSafe(id){ return /^[A-Za-z0-9_-]{1,64}$/.test(String(id || "")); }
+  function shotPaths(userId, horseId){
+    var base = userId + "/" + horseId + "/";
+    return { full: base + "full.jpg", thumb: base + "thumb.jpg" };
+  }
+  function dataUrlByteLength(dataUrl){
+    var s = String(dataUrl || "");
+    var i = s.indexOf(",");
+    var b64 = i >= 0 ? s.slice(i + 1) : s;
+    var pad = b64.slice(-2) === "==" ? 2 : (b64.slice(-1) === "=" ? 1 : 0);
+    return Math.max(0, Math.floor(b64.length * 3 / 4) - pad);
+  }
+  // Storage errors → what the queue should do about them.
+  //   "unavailable": bucket not set up yet (SQL not applied) — wait quietly.
+  //   "rejected":    file itself refused (size/type) — tell the user, stop.
+  //   "retry":       anything else (offline, horse row not synced yet, 5xx).
+  function classifyStorageError(err){
+    var status = String((err && (err.statusCode || err.status)) || "");
+    var msg = String((err && (err.message || err.error)) || "").toLowerCase();
+    if(/bucket not found/.test(msg)) return "unavailable";
+    if(status === "413" || /maximum allowed size|payload too large|too large/.test(msg)) return "rejected";
+    if(status === "415" || /mime type|invalid mime|not supported/.test(msg)) return "rejected";
+    return "retry";
+  }
+  function shotBackoffMs(attempts){
+    return Math.min(10 * 60 * 1000, 5000 * Math.pow(2, Math.max(0, attempts || 0)));
+  }
+  // What should happen to a device's cached picture after the horse record
+  // changed? Returns "keep", "clear" (explicitly removed elsewhere) or
+  // "stale" (a newer picture exists in the cloud).
+  function shotCacheDecision(pointer, rec, hasPendingQueueEntry){
+    if(hasPendingQueueEntry) return "keep";            // this device's own change wins until sent
+    if(pointer === null) return rec && rec.cloudV ? "clear" : "keep";
+    if(!pointer || !pointer.v) return "keep";          // no information
+    if(!rec || rec.cloudV !== pointer.v) return "stale";
+    return "keep";
+  }
+  // A local picture qualifies for the one-time "upload from this device"
+  // offer when the horse is in the confirmed cloud roster, the picture was
+  // never uploaded, the cloud has no newer picture, and nothing is queued.
+  function shotOfferCandidate(horse, rec, inCloud, hasPendingQueueEntry){
+    if(!horse || !rec || !rec.full || rec.cloudV || !inCloud || hasPendingQueueEntry) return false;
+    return !screenshotPointerV(horse);
+  }
+  // A storage folder is an orphan only if its horse id is unknown to the
+  // cloud roster (active or recently deleted), nothing is queued for it, and
+  // every file in it is old enough that a brand-new horse from another
+  // device cannot be mistaken for one.
+  function shotFolderIsOrphan(horseId, knownIds, queuedIds, files, nowMs){
+    if(knownIds[horseId] || queuedIds[horseId]) return false;
+    if(!files || !files.length) return false;
+    return files.every(function(f){
+      var t = Date.parse((f && (f.updated_at || f.created_at)) || "");
+      return isFinite(t) && (nowMs - t) >= SHOT_ORPHAN_MIN_AGE_MS;
+    });
+  }
 
   function emptySkills(onKeys){
     var s = {};
@@ -1357,7 +1467,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   var LOCAL_OWNER_ID = "local";
 
   function mk(o){
-    return {
+    var made = {
       id: o.id || uid(),
       ownerId: o.ownerId || LOCAL_OWNER_ID,
       name: o.name || "",
@@ -1401,6 +1511,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       consumedIn: o.consumedIn || null,
       history: o.history || []
     };
+    // Screenshot sync pointer. Kept only when valid; an absent field stays
+    // absent so older data never looks like an explicit removal.
+    var shotPointer = normalizeScreenshotPointer(o.screenshot);
+    if(shotPointer !== undefined) made.screenshot = shotPointer;
+    return made;
   }
 
   function defaultBreedingsForSex(sex){
@@ -1944,6 +2059,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     storageWarnBanner.hidden = true;
     try{ localStorage.setItem(STORAGE_WARN_SEEN_KEY, "1"); }catch(e){}
   });
+  document.getElementById("dismissShotSync").addEventListener("click", function(){
+    document.getElementById("shotSyncBanner").hidden = true;
+  });
   document.getElementById("dismissCloudLimit").addEventListener("click", function(){
     document.getElementById("cloudLimitBanner").hidden = true;
   });
@@ -2093,7 +2211,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     // Lightweight indicator only — the actual image is never loaded for
     // the grid, just this cached yes/no, so a big roster doesn't mean a
     // big roster's worth of IndexedDB reads on every render.
-    if(hasScreenshot(h.id)) topRow += '<span class="badge photo" title="Has a screenshot attached">\u{1F4F7}</span>';
+    if(hasScreenshot(h.id) || screenshotPointerV(h)) topRow += '<span class="badge photo" title="Has a screenshot attached">\u{1F4F7}</span>';
 
     var bottom = "";
     if(state.capsule==="active" || state.capsule==="project"){
@@ -2507,6 +2625,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
         hideCloudLimitNotice();
         setCloudStatus("Cloud saved", "saved");
       }
+      // A horse row just reached the cloud; any picture waiting on it can go.
+      kickShotQueue(200);
     }catch(err){
       var limitMessage = cloudLimitErrorMessage(err);
       if(limitMessage){
@@ -2639,6 +2759,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       if(changed){
         persistLocalOnly();
         renderAll();
+        shotAfterRosterChange();
       }
       setCloudStatus("Cloud saved", "saved");
     }catch(err){
@@ -2658,6 +2779,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     document.getElementById("authGate").hidden = true;
     document.getElementById("signOutBtn").hidden = false;
     setCloudStatus("Cloud saved", "saved");
+    shotOnCloudReady();
   }
 
   function offerLocalRosterMigration(activeFromCloud){
@@ -2848,7 +2970,375 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     });
   }
 
+  // ---------- Screenshot cloud sync (signed-in only) ----------
+  // Order of operations (plan section 4): the picture is saved on this
+  // device first, then queued; the upload waits until the horse row itself
+  // is confirmed in the cloud (storage refuses pictures for unknown horses);
+  // only after BOTH files upload does the horse get its pointer, so no device
+  // ever sees a pointer to files that are not there yet.
+  var SHOT_QUEUE_KEY_PREFIX = "jinxStables.shotQueue.v1.";
+  var SHOT_OFFER_KEY_PREFIX = "jinxStables.shotOfferDone.v1.";
+  var SHOT_CLEANUP_KEY_PREFIX = "jinxStables.shotCleanupAt.v1.";
+  var shotQueueBusy = false;
+  var shotQueueTimer = null;
+  var shotStorageUnavailableUntil = 0;
+  var shotFailedDownloads = Object.create(null);  // "id|v" -> true, this page load only
+
+  function shotSyncActive(){
+    return !!(cloudReady && cloudClient && cloudUserId && cloudStableId && !showingSample);
+  }
+  function shotQueueKey(){ return SHOT_QUEUE_KEY_PREFIX + cloudUserId; }
+  function loadShotQueue(){
+    if(!cloudUserId) return Object.create(null);
+    try{
+      var raw = localStorage.getItem(shotQueueKey());
+      var parsed = raw ? JSON.parse(raw) : null;
+      var clean = Object.create(null);
+      if(parsed && typeof parsed === "object"){
+        Object.keys(parsed).forEach(function(id){
+          var e = parsed[id];
+          if(!shotIdSafe(id) || !e || (e.op !== "upload" && e.op !== "remove")) return;
+          clean[id] = { op: e.op, v: typeof e.v === "string" ? e.v : "", attempts: +e.attempts || 0, nextAt: +e.nextAt || 0 };
+        });
+      }
+      return clean;
+    }catch(e){ return Object.create(null); }
+  }
+  function saveShotQueue(q){
+    if(!cloudUserId) return;
+    try{
+      if(Object.keys(q).length) localStorage.setItem(shotQueueKey(), JSON.stringify(q));
+      else localStorage.removeItem(shotQueueKey());
+    }catch(e){}
+  }
+  function newShotV(){ return new Date().toISOString().replace(/[^0-9A-Za-z:.\-]/g, ""); }
+
+  // Called after a picture was saved to / removed from this device.
+  // Guest mode (no signed-in user) keeps today's device-only behavior.
+  function shotQueueLocalChange(horseId, op){
+    if(!cloudUserId || showingSample || !shotIdSafe(horseId)) return;
+    var q = loadShotQueue();
+    q[horseId] = { op: op, v: op === "upload" ? newShotV() : "", attempts: 0, nextAt: 0 };
+    saveShotQueue(q);
+    kickShotQueue(300);
+  }
+  function kickShotQueue(delay){
+    clearTimeout(shotQueueTimer);
+    shotQueueTimer = setTimeout(function(){ shotQueueTimer = null; processShotQueue(); }, delay || 0);
+  }
+  function showShotRejected(names, gaveUp){
+    var banner = document.getElementById("shotSyncBanner");
+    var text = document.getElementById("shotSyncBannerText");
+    if(!banner || !text || !names.length) return;
+    var quoted = names.map(function(n){ return "“" + n + "”"; }).join(", ");
+    text.textContent = gaveUp
+      ? "The screenshot for " + quoted + " still couldn’t be saved to your account after several tries, so this device stopped trying. It is still on this device. Open the horse and add the picture again to retry."
+      : "The screenshot for " + quoted + " couldn’t be saved to your account (too large or not a readable image). It is still on this device. Try a different picture.";
+    banner.hidden = false;
+  }
+  function dataUrlToBlob(dataUrl){
+    var s = String(dataUrl || "");
+    var comma = s.indexOf(",");
+    var bin = atob(s.slice(comma + 1));
+    var bytes = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: "image/jpeg" });
+  }
+  function blobToDataUrl(blob){
+    return new Promise(function(resolve, reject){
+      var fr = new FileReader();
+      fr.onload = function(){ resolve(fr.result); };
+      fr.onerror = function(){ reject(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  function shotStorage(){ return cloudClient.storage.from(SHOT_BUCKET); }
+
+  async function processShotQueue(){
+    if(!shotSyncActive() || shotQueueBusy) return;
+    shotQueueBusy = true;
+    var nextWake = 0;
+    try{
+      var q = loadShotQueue();
+      var ids = Object.keys(q);
+      var rejectedNames = [];
+      var gaveUpNames = [];
+      var now = Date.now();
+      for(var i = 0; i < ids.length; i++){
+        var id = ids[i];
+        var entry = q[id];
+        if(!entry) continue;
+        var horse = findHorse(id);
+        var knownToCloud = Object.prototype.hasOwnProperty.call(cloudUpdatedAt, id);
+        // A horse that is neither on this device nor known to the cloud
+        // (never synced, or purged) has nothing left to sync.
+        if(!horse && !knownToCloud){ delete q[id]; continue; }
+        if(now < entry.nextAt || now < shotStorageUnavailableUntil){
+          var wake = Math.max(entry.nextAt, shotStorageUnavailableUntil) - now;
+          nextWake = nextWake ? Math.min(nextWake, wake) : wake;
+          continue;
+        }
+        var paths = shotPaths(cloudUserId, id);
+        try{
+          if(entry.op === "remove"){
+            var removed = await shotStorage().remove([paths.thumb, paths.full]);
+            if(removed.error) throw removed.error;
+            var afterRemove = loadShotQueue();
+            if(afterRemove[id] && afterRemove[id].op === "remove") delete afterRemove[id];
+            q = afterRemove;
+            saveShotQueue(q);
+            continue;
+          }
+          // Upload: wait for the horse row to be confirmed active in the cloud.
+          if(!horse || !Object.prototype.hasOwnProperty.call(cloudShadow, id)){
+            continue;
+          }
+          var rec = await getScreenshot(id).catch(function(){ return null; });
+          if(!rec || !rec.full){ delete q[id]; saveShotQueue(q); continue; }
+          // Older pictures were stored at 1600 px; re-compress to the plan's
+          // 1280 px / 500 KB target before they leave the device.
+          var packed = await compressScreenshot(rec.full).catch(function(){ return null; });
+          if(!packed){
+            rejectedNames.push(horse.name || "Unnamed horse");
+            delete q[id]; saveShotQueue(q); continue;
+          }
+          if(dataUrlByteLength(packed.full) > SHOT_HARD_BYTES){
+            rejectedNames.push(horse.name || "Unnamed horse");
+            delete q[id]; saveShotQueue(q); continue;
+          }
+          var upThumb = await shotStorage().upload(paths.thumb, dataUrlToBlob(packed.thumb), { upsert: true, contentType: "image/jpeg", cacheControl: "0" });
+          if(upThumb.error) throw upThumb.error;
+          var upFull = await shotStorage().upload(paths.full, dataUrlToBlob(packed.full), { upsert: true, contentType: "image/jpeg", cacheControl: "0" });
+          if(upFull.error) throw upFull.error;
+
+          // Only point the horse at the new files if nothing newer happened
+          // to this picture while the upload was running.
+          var latest = loadShotQueue();
+          if(latest[id] && latest[id].op === "upload" && latest[id].v === entry.v){
+            delete latest[id];
+            saveShotQueue(latest);
+            await saveScreenshot(id, packed.full, packed.thumb, entry.v).catch(function(){});
+            var live = findHorse(id);
+            if(live){
+              live.screenshot = { v: entry.v };
+              persist();
+            }
+          }
+          q = loadShotQueue();
+        }catch(err){
+          var kind = classifyStorageError(err);
+          if(kind === "unavailable"){
+            // Storage is not set up yet (the review-only SQL has not been
+            // applied). Keep everything queued and check again later.
+            shotStorageUnavailableUntil = Date.now() + 10 * 60 * 1000;
+            nextWake = 10 * 60 * 1000;
+            break;
+          }
+          if(kind === "rejected"){
+            rejectedNames.push((horse && horse.name) || "Unnamed horse");
+            q = loadShotQueue(); delete q[id]; saveShotQueue(q);
+            continue;
+          }
+          q = loadShotQueue();
+          if(q[id]){
+            // Offline is not a failure of this picture: wait for the
+            // browser's "online" event instead of burning attempts.
+            if(typeof navigator !== "undefined" && navigator.onLine === false){
+              saveShotQueue(q);
+              break;
+            }
+            q[id].attempts = (q[id].attempts || 0) + 1;
+            if(q[id].attempts >= SHOT_MAX_ATTEMPTS){
+              gaveUpNames.push((horse && horse.name) || "Unnamed horse");
+              delete q[id];
+              saveShotQueue(q);
+              continue;
+            }
+            q[id].nextAt = Date.now() + shotBackoffMs(q[id].attempts);
+            saveShotQueue(q);
+            var backoff = q[id].nextAt - Date.now();
+            nextWake = nextWake ? Math.min(nextWake, backoff) : backoff;
+          }
+        }
+      }
+      saveShotQueue(q);
+      if(rejectedNames.length) showShotRejected(rejectedNames, false);
+      if(gaveUpNames.length) showShotRejected(gaveUpNames, true);
+      refreshScreenshotIdCache().then(function(){ renderGrid(); });
+    }finally{
+      shotQueueBusy = false;
+    }
+    // Uploads waiting for a horse row are picked up again after the next
+    // horse sync; this timer only covers backoff and storage-not-ready.
+    if(nextWake > 0 && shotSyncActive()) kickShotQueue(nextWake + 50);
+  }
+
+  // Bring this device's cached pictures in line with the horse records
+  // after a load, pull or restore. Clears copies removed on another device;
+  // newer cloud pictures are fetched lazily when the horse is opened.
+  function shotAfterRosterChange(){
+    if(!shotSyncActive()) return;
+    var q = loadShotQueue();
+    getAllScreenshotIds().catch(function(){ return []; }).then(function(ids){
+      var chain = Promise.resolve();
+      ids.forEach(function(id){
+        var h = findHorse(id);
+        if(!h) return;
+        var pointer = normalizeScreenshotPointer(h.screenshot);
+        if(pointer !== null) return;
+        chain = chain.then(function(){
+          return getScreenshot(id).then(function(rec){
+            if(shotCacheDecision(pointer, rec, !!q[id]) === "clear") return deleteScreenshot(id);
+          }).catch(function(){});
+        });
+      });
+      return chain;
+    }).then(function(){ return refreshScreenshotIdCache(); }).then(function(){ renderGrid(); });
+    kickShotQueue(500);
+  }
+
+  // Thumbnail for the editor: local copy when current, otherwise download.
+  function shotEnsureThumb(horse, rec){
+    var v = screenshotPointerV(horse);
+    var q = shotSyncActive() ? loadShotQueue() : Object.create(null);
+    var decision = shotCacheDecision(normalizeScreenshotPointer(horse.screenshot), rec, !!q[horse.id]);
+    if(decision !== "stale" || !shotSyncActive() || shotFailedDownloads[horse.id + "|" + v]){
+      return Promise.resolve(null);
+    }
+    var loading = el("screenshotLoading");
+    if(loading) loading.hidden = false;
+    return shotStorage().download(shotPaths(cloudUserId, horse.id).thumb).then(function(res){
+      if(res.error || !res.data) throw res.error || new Error("no data");
+      return blobToDataUrl(res.data);
+    }).then(function(thumb){
+      // Only the thumbnail is cached here; the full picture is fetched on tap.
+      return saveScreenshot(horse.id, null, thumb, v).then(refreshScreenshotIdCache).then(function(){ return thumb; });
+    }).catch(function(){
+      shotFailedDownloads[horse.id + "|" + v] = true;
+      return null;
+    }).then(function(thumb){
+      if(loading) loading.hidden = true;
+      return thumb;
+    });
+  }
+  function shotLoadFull(horse){
+    return getScreenshot(horse.id).catch(function(){ return null; }).then(function(rec){
+      var v = screenshotPointerV(horse);
+      if(rec && rec.full && (!v || rec.cloudV === v || !rec.cloudV)) return rec.full;
+      if(!v || !shotSyncActive()) return rec ? (rec.full || rec.thumb) : null;
+      return shotStorage().download(shotPaths(cloudUserId, horse.id).full).then(function(res){
+        if(res.error || !res.data) throw res.error || new Error("no data");
+        return blobToDataUrl(res.data);
+      }).then(function(full){
+        var thumb = rec && rec.cloudV === v ? rec.thumb : full;
+        return saveScreenshot(horse.id, full, thumb, v).then(function(){ return full; });
+      }).catch(function(){ return rec ? rec.thumb : null; });
+    });
+  }
+  function shotShowFull(dataUrl){
+    if(!dataUrl) return;
+    var overlay = document.createElement("div");
+    overlay.className = "shot-full-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-label", "Full-size screenshot. Tap to close.");
+    var img = document.createElement("img");
+    img.src = dataUrl;
+    img.alt = "Full-size screenshot";
+    overlay.appendChild(img);
+    overlay.addEventListener("click", function(){ overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  // Plan section 7: one-time offer to upload pictures that existed on this
+  // device before screenshot sync. Nothing uploads unless the user says yes.
+  function shotMaybeOfferDeviceUpload(triesLeft){
+    if(!shotSyncActive()) return;
+    var doneKey = SHOT_OFFER_KEY_PREFIX + cloudUserId;
+    try{ if(localStorage.getItem(doneKey) === "1") return; }catch(e){ return; }
+    if(!modalBackdrop.hidden || !document.getElementById("authGate").hidden){
+      if(triesLeft > 0) setTimeout(function(){ shotMaybeOfferDeviceUpload(triesLeft - 1); }, 5000);
+      return;
+    }
+    var q = loadShotQueue();
+    getAllScreenshotIds().catch(function(){ return []; }).then(function(ids){
+      return Promise.all(ids.map(function(id){
+        return getScreenshot(id).catch(function(){ return null; }).then(function(rec){
+          var h = findHorse(id);
+          return shotOfferCandidate(h, rec, Object.prototype.hasOwnProperty.call(cloudShadow, id), !!q[id]) ? id : null;
+        });
+      }));
+    }).then(function(found){
+      var candidates = found.filter(Boolean);
+      if(!candidates.length || !shotSyncActive() || !modalBackdrop.hidden) return;
+      modalBox.innerHTML =
+        '<h2>Screenshots on this device</h2>' +
+        '<div class="modal-note">Upload <b>' + candidates.length + '</b> screenshot' + (candidates.length === 1 ? '' : 's') + ' from this device so your other devices can see them?</div>' +
+        '<div class="project-warn">They are saved privately to your account. Nothing uploads unless you choose Upload.</div>' +
+        '<div class="modal-actions"><button class="btn" id="shotOfferSkip">Not now</button><button class="btn primary" id="shotOfferUpload">Upload</button></div>';
+      modalBackdrop.hidden = false;
+      function finish(){ try{ localStorage.setItem(doneKey, "1"); }catch(e){} closeModal(); }
+      el("shotOfferSkip").addEventListener("click", finish);
+      el("shotOfferUpload").addEventListener("click", function(){
+        var queue = loadShotQueue();
+        candidates.forEach(function(id){ queue[id] = { op: "upload", v: newShotV(), attempts: 0, nextAt: 0 }; });
+        saveShotQueue(queue);
+        finish();
+        kickShotQueue(200);
+      });
+    });
+  }
+
+  // Codex release requirement: remove files left behind by horses that
+  // were purged after their 30-day Recently deleted window. Runs at most
+  // once a day per device, only touches the signed-in user's own folder,
+  // and skips anything newer than a day.
+  async function shotCleanupOrphans(){
+    if(!shotSyncActive()) return;
+    var stampKey = SHOT_CLEANUP_KEY_PREFIX + cloudUserId;
+    try{
+      var last = +localStorage.getItem(stampKey) || 0;
+      if(Date.now() - last < SHOT_ORPHAN_MIN_AGE_MS) return;
+    }catch(e){ return; }
+    try{
+      var rows = await cloudClient.from("horses").select("id").eq("stable_id", cloudStableId);
+      if(rows.error) return;
+      var known = Object.create(null);
+      (rows.data || []).forEach(function(r){ known[r.id] = true; });
+      var queued = loadShotQueue();
+      var folders = [];
+      for(var offset = 0; offset < 10000; offset += 1000){
+        var page = await shotStorage().list(cloudUserId, { limit: 1000, offset: offset });
+        if(page.error) return;
+        var items = page.data || [];
+        items.forEach(function(it){ if(it && it.id === null && shotIdSafe(it.name)) folders.push(it.name); });
+        if(items.length < 1000) break;
+      }
+      var now = Date.now();
+      for(var i = 0; i < folders.length; i++){
+        var horseId = folders[i];
+        if(known[horseId] || queued[horseId]) continue;
+        var inside = await shotStorage().list(cloudUserId + "/" + horseId, { limit: 10 });
+        if(inside.error) continue;
+        var files = (inside.data || []).filter(function(f){ return f && f.id; });
+        if(!shotFolderIsOrphan(horseId, known, queued, files, now)) continue;
+        await shotStorage().remove(files.map(function(f){ return cloudUserId + "/" + horseId + "/" + f.name; }));
+      }
+      try{ localStorage.setItem(stampKey, String(Date.now())); }catch(e){}
+    }catch(e){ /* best-effort; tries again next load */ }
+  }
+
+  function shotOnCloudReady(){
+    if(!shotSyncActive()) return;
+    shotAfterRosterChange();
+    setTimeout(function(){ shotMaybeOfferDeviceUpload(12); }, 1500);
+    setTimeout(shotCleanupOrphans, 15000);
+  }
+
   function resetCloudSessionUI(){
+    clearTimeout(shotQueueTimer);
+    shotQueueTimer = null;
+    var shotBanner = document.getElementById("shotSyncBanner");
+    if(shotBanner) shotBanner.hidden = true;
     cloudReady = false;
     cloudUserId = null;
     cloudStableId = null;
@@ -3050,11 +3540,12 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       '<div id="screenshotEmptyWrap">' +
         '<input type="file" accept="image/*" id="screenshotFileInput" hidden>' +
         '<button type="button" class="btn small" id="addScreenshotBtn">Add screenshot</button>' +
-        '<div class="modal-note">Optional. A photo of this horse\'s in-game info screen, kept as a visual reference. Stored on this device only, not included in JSON/CSV backups yet.</div>' +
+        '<div class="modal-note" id="screenshotStorageNote">Optional. A photo of this horse\'s in-game info screen, kept as a visual reference. Stored on this device only, not included in JSON/CSV backups yet.</div>' +
       '</div>' +
       '<div id="screenshotError" class="modal-note" style="color:var(--danger);" hidden></div>' +
+      '<div id="screenshotLoading" class="modal-note" hidden>Loading picture…</div>' +
       '<div id="screenshotPreviewWrap" hidden>' +
-        '<img id="screenshotPreview" alt="Attached screenshot" style="max-width:220px; display:block; border-radius:8px; border:1px solid var(--border);">' +
+        '<img id="screenshotPreview" alt="Attached screenshot. Tap to view full size." title="Tap to view full size" style="max-width:220px; display:block; border-radius:8px; border:1px solid var(--border); cursor:zoom-in;">' +
         '<div class="editor-actions" style="margin-top:8px; padding-top:0; border-top:none;">' +
           '<button type="button" class="btn small" id="replaceScreenshotBtn">Replace</button>' +
           '<button type="button" class="btn small danger" id="removeScreenshotBtn">Remove</button>' +
@@ -3424,17 +3915,14 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     el("screenshotError").hidden = true;
     var reader = new FileReader();
     reader.onload = function(){
-      Promise.all([
-        downscaleImage(reader.result, 1600, 0.85),
-        downscaleImage(reader.result, 320, 0.75)
-      ]).then(function(results){
-        pendingScreenshotAction = { action: "set", full: results[0], thumb: results[1] };
-        renderScreenshotPreview(results[1]);
+      compressScreenshot(reader.result).then(function(out){
+        pendingScreenshotAction = { action: "set", full: out.full, thumb: out.thumb };
+        renderScreenshotPreview(out.thumb);
       }).catch(function(){
-        showScreenshotError("Couldn't read that image. Try a different file.");
+        showScreenshotError(SHOT_UNREADABLE_MSG);
       });
     };
-    reader.onerror = function(){ showScreenshotError("Couldn't read that image. Try a different file."); };
+    reader.onerror = function(){ showScreenshotError(SHOT_UNREADABLE_MSG); };
     reader.readAsDataURL(file);
   }
   // Actually writes the pending screenshot change to IndexedDB — called
@@ -3444,8 +3932,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(!pendingScreenshotAction) return Promise.resolve();
     var action = pendingScreenshotAction;
     var p;
-    if(action.action === "set") p = saveScreenshot(horseId, action.full, action.thumb);
-    else if(action.action === "remove") p = deleteScreenshot(horseId);
+    if(action.action === "set") p = saveScreenshot(horseId, action.full, action.thumb).then(function(){ shotQueueLocalChange(horseId, "upload"); });
+    else if(action.action === "remove") p = deleteScreenshot(horseId).then(function(){ shotQueueLocalChange(horseId, "remove"); });
     else p = Promise.resolve();
     return p.then(refreshScreenshotIdCache).catch(function(){ /* best-effort; horse data is already safely saved regardless */ });
   }
@@ -3541,10 +4029,23 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(pendingScreenshotAction && pendingScreenshotAction.action === "set"){
       renderScreenshotPreview(pendingScreenshotAction.thumb);
     } else if(existing){
-      getScreenshot(existing.id).then(function(rec){
+      var openedFor = existing.id;
+      getScreenshot(existing.id).catch(function(){ return null; }).then(function(rec){
+        if(state.editingId !== openedFor) return;
         if(rec && !pendingScreenshotAction) renderScreenshotPreview(rec.thumb);
+        return shotEnsureThumb(existing, rec).then(function(thumb){
+          if(thumb && state.editingId === openedFor && !pendingScreenshotAction) renderScreenshotPreview(thumb);
+        });
       }).catch(function(){ /* screenshots unavailable — leave the empty state showing */ });
     }
+    if(shotSyncActive()){
+      el("screenshotStorageNote").textContent = "Optional. A photo of this horse's in-game info screen. Saved privately to your account so your other signed-in devices see it too. Not included in JSON/CSV backups.";
+    }
+    el("screenshotPreview").addEventListener("click", function(){
+      if(pendingScreenshotAction && pendingScreenshotAction.action === "set"){ shotShowFull(pendingScreenshotAction.full); return; }
+      if(!existing) return;
+      shotLoadFull(existing).then(function(full){ if(full) shotShowFull(full); });
+    });
     el("addScreenshotBtn").addEventListener("click", function(){ el("screenshotFileInput").click(); });
     el("replaceScreenshotBtn").addEventListener("click", function(){ el("screenshotFileInput").click(); });
     el("removeScreenshotBtn").addEventListener("click", function(){
@@ -3715,6 +4216,13 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     var savedId = draft.id;
     if(state.editingId){
       var idx = horses.findIndex(function(x){ return x.id === state.editingId; });
+      if(idx>-1){
+        var livePointer = normalizeScreenshotPointer(horses[idx].screenshot);
+        if(livePointer !== undefined) draft.screenshot = livePointer; else delete draft.screenshot;
+      }
+      if(pendingScreenshotAction && pendingScreenshotAction.action === "remove" && shotSyncActive()){
+        draft.screenshot = null;
+      }
       if(idx>-1) horses[idx] = draft;
     } else {
       horses.push(draft);
@@ -4140,22 +4648,20 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       el("qaScreenshotError").hidden = true;
       var reader = new FileReader();
       reader.onload = function(){
-        Promise.all([
-          downscaleImage(reader.result, 1600, 0.85),
-          downscaleImage(reader.result, 320, 0.75)
-        ]).then(function(results){
-          qaPendingScreenshotAction = { action: "set", full: results[0], thumb: results[1] };
-          qaRenderScreenshotPreview(results[1]);
+        compressScreenshot(reader.result).then(function(out){
+          qaPendingScreenshotAction = { action: "set", full: out.full, thumb: out.thumb };
+          qaRenderScreenshotPreview(out.thumb);
         }).catch(function(){
-          qaShowScreenshotError("Couldn't read that image. Try a different file.");
+          qaShowScreenshotError(SHOT_UNREADABLE_MSG);
         });
       };
-      reader.onerror = function(){ qaShowScreenshotError("Couldn't read that image. Try a different file."); };
+      reader.onerror = function(){ qaShowScreenshotError(SHOT_UNREADABLE_MSG); };
       reader.readAsDataURL(file);
     }
     function applyQaScreenshotAction(horseId){
       if(!qaPendingScreenshotAction || qaPendingScreenshotAction.action !== "set") return Promise.resolve();
       return saveScreenshot(horseId, qaPendingScreenshotAction.full, qaPendingScreenshotAction.thumb)
+        .then(function(){ shotQueueLocalChange(horseId, "upload"); })
         .then(refreshScreenshotIdCache).catch(function(){});
     }
     function peekQaSnapshot(){
@@ -5919,6 +6425,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     if(!document.hidden) pullCloudWhenSafe();
   });
   window.addEventListener("focus", function(){ pullCloudWhenSafe(); });
+  window.addEventListener("online", function(){ kickShotQueue(1000); });
 
   initCloudAuth();
 })();

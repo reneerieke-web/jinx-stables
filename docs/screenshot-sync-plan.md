@@ -38,7 +38,8 @@ For role `authenticated`, bucket `horse-screenshots` only:
 4. Upload `thumb.jpg` and `full.jpg` (`upsert: true`).
 5. **Only after both uploads succeed**, set `horse.screenshot.v` and let normal horse sync save it.
    So no device ever sees a pointer to a file that is not there yet.
-6. Failures stay queued and retry with backoff. A rejected file (too big, wrong type) shows the same kind of banner as the data limits, naming the horse.
+6. Failures stay queued and retry with backoff (5 s doubling, capped at 10 minutes). A rejected file (too big, wrong type, unreadable) shows a banner naming the horse and is not retried. After **12 real server failures** the device stops trying, removes the entry and says so; being offline does not count, and the queue resumes on the browser's `online` event. The queue only runs while the app is open.
+7. Every picture is re-drawn on a canvas and saved as JPEG before it is stored or uploaded, so PNG/WebP/JPG all become `image/jpeg`. A format the browser itself cannot open (for example HEIC on a desktop browser without HEIC support) fails at pick time with a message suggesting a JPG/PNG or "Most Compatible"; it never enters the queue, so it cannot fail silently.
 
 ### 5. Download flow
 - Card camera badge comes from `horse.screenshot` (no network).
@@ -85,6 +86,13 @@ Honest limits:
 - The app **cannot reliably pick the exact code by itself.** Many coats in a tier share a body color and differ only in mane, spots, or dapples, and the catalog descriptions are still low-confidence guesses. So it narrows the list; the player makes the call.
 - True picture recognition would mean sending screenshots to an outside AI service (cost, privacy, and it still needs verified reference pictures). Not planned.
 - As players confirm coats, the catalog gets more accurate and the short lists get better.
+
+## Review notes (Mini's checks, Sept 27)
+- **COUNT() in RLS:** removed in SQL revision 2 (`264d7bf`); uploads use one indexed horse lookup.
+- **Endless retries:** handled; see section 4 step 6 (12-failure ceiling, offline pauses, rejections stop at once).
+- **HEIC:** handled; see section 4 step 7. Not verified on a real iPhone yet, so it is on Renee's phone test list.
+- **Deleted horses filling the 2,000 cap:** this is the existing horse-row limit, not a screenshot cap (pictures do not add to it). A power-user "empty Recently deleted now" would need a hard-delete permission that signed-in users deliberately do not have today. Open decision for Renee; not part of this release.
+- **Two devices uploading different pictures of the same horse at the same moment:** files use fixed names (`full.jpg`, `thumb.jpg`), so if two uploads interleave within the same few seconds, the thumbnail could come from one picture and the full size from the other. Sequential or offline-then-online cases are fine: each device uploads both files back to back and the last device to finish wins consistently. A complete fix needs versioned file names (SQL revision 3 plus deleting the previous version); recommended only if it is ever seen in practice. Workaround: replace the picture once more.
 
 ## Security test before release (Claude runs, rolled back or on test users only)
 1. User B cannot list, download, upload to, overwrite, or delete anything in user A's folder.

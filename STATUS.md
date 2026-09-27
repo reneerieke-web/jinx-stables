@@ -6,7 +6,7 @@ Updated: September 27, 2026 (ET)
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** none open; `claude/screenshot-storage-sql` was approved by Codex and fast-forwarded into `cloud-sync-preview`
+- **Claude's working branch:** `claude/screenshot-sync-app` (screenshot sync app portion, waiting for Codex review; not merged)
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
@@ -77,7 +77,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 2. **Release requirement (Codex):** orphan cleanup for screenshots of purged horses must exist before screenshot sync goes live broadly.
 3. Add the privacy note to the site footer.
 4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-5. Build screenshot sync (plan sections 3 to 7) with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release. The upload queue must wait until a horse row reaches the cloud.
+5. Screenshot sync app portion (plan sections 3 to 7 plus orphan cleanup) built by Claude on `claude/screenshot-sync-app`; Codex reviews, then merges into `cloud-sync-preview`. Order agreed by Renee (app-first): review → Renee applies SQL → Claude runs the cross-account storage test → Renee tests computer → phone → delete/restore → production.
 6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
