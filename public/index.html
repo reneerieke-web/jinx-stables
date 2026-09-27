@@ -54,7 +54,7 @@
   html,body{height:100%;}
   h1,h2,h3{font-family:"Spectral",Georgia,serif; text-wrap:balance; margin:0;}
   .mono{font-family:"IBM Plex Mono","Courier New",monospace; font-variant-numeric:tabular-nums;}
-  button{font-family:inherit; cursor:pointer;}
+  button{font-family:inherit; cursor:pointer; touch-action:manipulation;}
   input,select,textarea,button{font-size:14px;}
   a{color:var(--gold);}
 
@@ -277,6 +277,7 @@
   #modalBox{background:var(--panel); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); width:min(480px,100%); max-height:88vh; overflow-y:auto; padding:22px; display:flex; flex-direction:column; gap:16px;}
   #modalBox h2{font-size:19px;}
   #modalBox .modal-actions{display:flex; justify-content:flex-end; gap:10px; padding-top:6px; border-top:1px solid var(--border);}
+  .quick-add-body{display:contents;}
   #modalBox textarea.jsonbox{font-family:"IBM Plex Mono","Courier New",monospace; font-size:11.5px; height:160px; background:var(--ink); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px; width:100%; resize:vertical;}
   .modal-note{font-size:12px; color:var(--text-faint);}
 
@@ -441,6 +442,9 @@
   @media (max-width:640px){
     body{padding-inline:0;}
     #app{padding:14px 12px calc(88px + env(safe-area-inset-bottom,0px)); gap:12px;}
+    /* iOS Safari magnifies focused controls below 16px. Keep phone fields at
+       the non-zooming size without disabling the user's normal pinch zoom. */
+    input,select,textarea{font-size:16px !important;}
     .two-col{grid-template-columns:1fr;}
     #editor{left:0; right:auto; width:100dvw; max-width:100dvw; min-width:0; overflow-x:clip;
       padding:16px 14px calc(88px + env(safe-area-inset-bottom,0px));}
@@ -565,7 +569,28 @@
       background:rgba(36,43,36,.97); background:color-mix(in srgb, var(--panel) 97%, transparent); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
     #editorSaveBar .btn{min-height:44px; min-width:0; white-space:nowrap;}
     #editorSaveBar #saveBtn{justify-self:end; margin-left:0 !important;}
-    #modalBox{max-height:92vh; padding:18px 14px;}
+    /* Keep phone modals inside the dynamic viewport (including browser chrome
+       and safe areas), and never allow a wide child to move the modal sideways. */
+    #modalBackdrop{align-items:flex-start; overflow:hidden;
+      padding:max(10px,env(safe-area-inset-top,0px)) 10px max(10px,env(safe-area-inset-bottom,0px));}
+    #modalBox{width:100%; max-height:calc(100dvh - max(10px,env(safe-area-inset-top,0px)) - max(10px,env(safe-area-inset-bottom,0px)));
+      padding:18px 14px; overflow-x:clip; overscroll-behavior:contain;}
+
+    /* Quick Add uses the same compact two-column skill layout as the full
+       phone editor. At 320px each column still has at least 132px of room. */
+    #qaSkillGrid,#qaSpecialSkillGrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;}
+    #qaSkillGrid .skill-toggle,#qaSpecialSkillGrid .skill-toggle{min-width:0;}
+
+    /* Quick Add is taller than a phone screen. Pin its actions inside the
+       modal and let them wrap so Save never falls off the right or bottom. */
+    #modalBox.quick-add-modal{overflow-y:hidden;}
+    #modalBox .quick-add-body{display:flex; flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:clip;
+      flex-direction:column; gap:16px; overscroll-behavior:contain;}
+    #modalBox .quick-add-actions{position:sticky; z-index:3; bottom:-18px; flex:0 0 auto;
+      margin:0 -14px -18px; padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+      flex-wrap:wrap; background:rgba(36,43,36,.98);
+      background:color-mix(in srgb,var(--panel) 98%,transparent); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
+    #modalBox .quick-add-actions .btn{flex:1 1 96px; min-width:0; min-height:44px;}
 
     /* Mobile launch screen: use the real phone viewport, stack the choices,
        and let the chooser scroll if browser chrome reduces usable height. */
@@ -4251,7 +4276,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     backdrop.hidden = false;
     editor.hidden = false;
     document.body.classList.add("editor-open");
-    el("fName").focus();
+    // Avoid iPhone focus zoom / keyboard takeover; desktop retains autofocus.
+    if(!window.matchMedia || window.matchMedia("(min-width:641px)").matches) el("fName").focus();
     editorFormSnapshot = peekEditorFormSnapshot();
   }
 
@@ -4431,7 +4457,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   // instead of silently discarding a half-filled form. Cleared on every
   // close so it never leaks into the next, unrelated modal.
   var activeModalGuard = null;
-  function closeModal(){ modalBackdrop.hidden = true; modalBox.innerHTML = ""; activeModalGuard = null; }
+  function closeModal(){ modalBackdrop.hidden = true; modalBox.innerHTML = ""; modalBox.classList.remove("quick-add-modal"); activeModalGuard = null; }
 
   // ---------- Beta feedback (signed-in only; text only) ----------
   // Reports go to the private public.feedback table (insert-only for users;
@@ -4738,8 +4764,10 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     var qaTier = "8", qaSex = "Female", qaLevel = 1, qaSubtype = "";
     var qaPendingScreenshotAction = null;
 
+    modalBox.classList.add("quick-add-modal");
     modalBox.innerHTML =
       '<h2>Add horse</h2>' +
+      '<div class="quick-add-body">' +
       '<div class="modal-note">Add the essentials now, or continue to the full editor without losing what you typed.</div>' +
       '<div class="field"><label for="qaName">Name</label><input id="qaName" type="text" placeholder="Horse name" autocomplete="off"></div>' +
       '<div class="field"><label>Tier</label><div class="big-choice-group" id="qaTierGroup"></div></div>' +
@@ -4768,7 +4796,8 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
           '<button type="button" class="btn small danger" id="qaRemoveScreenshotBtn">Remove</button>' +
         '</div>' +
       '</div>' +
-      '<div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn" id="qaMoreDetailsBtn">More details</button><button class="btn primary" id="qaSaveBtn">Save horse</button></div>';
+      '</div>' +
+      '<div class="modal-actions quick-add-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn" id="qaMoreDetailsBtn">More details</button><button class="btn primary" id="qaSaveBtn">Save horse</button></div>';
 
     function renderTierGroup(){
       var wrap = el("qaTierGroup");
@@ -4963,7 +4992,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     });
 
     modalBackdrop.hidden = false;
-    el("qaName").focus();
+    // Opening the keyboard immediately makes an already-short phone viewport
+    // feel even smaller. Desktop keeps the convenient autofocus.
+    if(!window.matchMedia || window.matchMedia("(min-width:641px)").matches) el("qaName").focus();
 
     var qaSnapshot0 = peekQaSnapshot();
     activeModalGuard = function(){ return peekQaSnapshot() !== qaSnapshot0; };
