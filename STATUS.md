@@ -7,9 +7,9 @@ Updated: September 27, 2026 (ET)
 - **Current builder:** Codex
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
-- **Last code commit:** `6543f03` — SheetJS 0.20.3 core upgrade and spreadsheet import limits, following tier XSS fix `77a17b0`
-- **Production head:** `main` is fast-forwarded to the approved launch release and its completed domain-launch documentation checkpoint
-- **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update; Renee approved the resulting preview on phone and desktop
+- **Last code commit:** `61a2b41` — protected cloud-limit handling and focused regression tests
+- **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
+- **Review status:** Claude approved `61a2b41`; its tests pass, desktop and phone are clean, blocked snapshots remain dirty, and account connection no longer traps the user
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
@@ -49,7 +49,8 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Pearl Abyss's recommended fan-content statement was added verbatim to the site footer and welcome-screen disclaimer while retaining the existing “Independent fan-made tool…” wording. Renee approved the exact wording for production.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 - Claude approved the proposed data-limit SQL after replica tests covering the 2,000-row boundary, existing-row upserts at the limit, 32 KB horse data, 100-character stable names, RLS isolation, and direct function-call denial. The SQL remains review-only and has not been applied to Supabase.
-- App-side limit handling now keeps an unsaved limit-rejected horse local and editable during account connection, excludes UTF-8 snapshots over 26,000 bytes without blocking other queued saves, names excluded horses in a phone-visible banner, and explains that Recently deleted horses count toward 2,000 until their 30-day purge. This protected sync change awaits Claude review before any SQL application.
+- App-side limit handling now keeps an unsaved limit-rejected horse local and editable during account connection, excludes UTF-8 snapshots over 26,000 bytes without blocking other queued saves, names excluded horses in a phone-visible banner, and explains that Recently deleted horses count toward 2,000 until their 30-day purge. Claude approved this protected sync change before SQL application.
+- Data-limit Step 1 completed: after Claude's approval, `main` was fast-forwarded to `61a2b41`. The production branch now contains the protected app-side handling before the database limits are applied.
 
 ## Security checkpoint
 
@@ -60,17 +61,20 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Claude reviews the protected app-side limit handling. After his approval and Renee's separate approval to apply the already-reviewed SQL, walk Renee through the Supabase dashboard one step at a time. The proposal covers 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name. **Nothing has been run against Supabase.**
-2. Add the privacy note to the site footer.
-3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
-5. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+1. With Renee's approval, walk her through applying `supabase/review/20260927_data_size_limits.sql` in the Supabase dashboard. It adds 32 KB per horse, 2,000 horse rows per stable, and 100 characters per stable name.
+2. Confirm the two CHECK constraints, enforcement function, and BEFORE INSERT trigger exist.
+3. Renee runs a live oversized-notes test on the preview.
+4. Add the privacy note to the site footer.
+5. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
+6. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+7. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
 
 - Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
 - Optional White color group.
 - Optional donation button, after confirming the implementation follows Pearl Abyss's fan-content requirements.
+- Improve `pullCloudWhenSafe` so unrelated remote updates can still be pulled while one oversized horse remains locally dirty; current behavior safely pauses pulls until the blocked horse is fixed.
 
 ## Tester invite note
 
