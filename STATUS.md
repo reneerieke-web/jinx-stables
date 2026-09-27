@@ -64,8 +64,8 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Claude drafts the screenshot-sync plan for Renee to approve before implementation.
-2. Fix the long cloud-limit warning text overlapping the title.
+1. Fix the long cloud-limit warning text overlapping the title; this is logged but not yet fixed and must be completed before screenshot-sync work begins.
+2. Claude drafts the screenshot-sync plan for Renee to approve before implementation.
 3. Add the privacy note to the site footer.
 4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
 5. After plan approval, build screenshot sync with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
