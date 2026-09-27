@@ -214,6 +214,15 @@
     border-radius:8px; padding:9px 11px; width:100%;
   }
   .field textarea{resize:vertical; white-space:pre-line; font-family:inherit;}
+  /* Feedback type choices: radio and label as one compact row. Overrides the
+     full-width .field input rule, which otherwise stretched each radio into
+     its own column. */
+  .fb-choices{display:flex; flex-direction:column; gap:2px;}
+  .field label.fb-choice{display:flex; align-items:center; gap:10px; min-height:40px; padding:6px 10px;
+    border-radius:8px; font-size:14px; font-weight:500; color:var(--text); cursor:pointer;}
+  .field label.fb-choice:hover{background:var(--panel-raised);}
+  .field .fb-choice input{flex:0 0 auto; width:18px; height:18px; margin:0; padding:0; accent-color:var(--gold);}
+  .fb-choice span{min-width:0; overflow-wrap:anywhere;}
   .two-col{grid-template-columns:1fr 1fr; gap:14px;}
   .two-col:not([hidden]){display:grid;}
   .stepper{display:flex; align-items:center; gap:12px;}
@@ -4460,11 +4469,11 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       return;
     }
     var opts = FEEDBACK_CATEGORIES.map(function(c, i){
-      return '<label style="display:flex; gap:8px; align-items:center; padding:4px 0;"><input type="radio" name="fbCat" value="' + c[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + esc(c[1]) + '</label>';
+      return '<label class="fb-choice"><input type="radio" name="fbCat" value="' + c[0] + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(c[1]) + '</span></label>';
     }).join("");
     modalBox.innerHTML =
       '<h2>Send feedback</h2>' +
-      '<div class="field"><label>What kind of feedback is this?</label>' + opts + '</div>' +
+      '<div class="field"><label id="fbCatLabel">What kind of feedback is this?</label><div class="fb-choices" role="radiogroup" aria-labelledby="fbCatLabel">' + opts + '</div></div>' +
       '<div class="field"><label for="fbMessage">Tell us what happened or what you\'re thinking</label><textarea id="fbMessage" rows="5" maxlength="4000"></textarea></div>' +
       '<div class="field"><label for="fbDoing">What were you doing when you noticed it? <span class="hint">optional</span></label><textarea id="fbDoing" rows="2" maxlength="1000"></textarea></div>' +
       '<div class="modal-note">Your device and browser type are included automatically. Your report is linked to your account so Renee can follow up, and other users can never see it. Want to add a screenshot? Send it to Renee on Discord.</div>' +

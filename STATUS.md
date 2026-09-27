@@ -7,6 +7,7 @@ Updated: September 27, 2026 (ET)
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
 - **Claude's working branch:** none open. Latest: `claude/shot-cache-bust` (`061b812`), approved by Codex and fast-forwarded into `cloud-sync-preview`.
+- **Pending review:** `claude/focused-bardeen-ikb2lu` has a UI-only fix to the feedback modal's type selector, built on `cloud-sync-preview` `0e268ac`. The general `.field input` rule (width 100%, padding) was stretching each radio into its own column; the choices now use a `.fb-choice` row class so each radio sits 10px left of its label in four aligned 40px rows. Labels, values, validation, insert payload, and SQL are unchanged. Tested at 1366, 390, and 320 px: no wrapping, no horizontal overflow, clicking the label text selects the choice. Waiting for Codex's blocker-only review before merge.
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `061b812` — screenshot cache-busting fix (on `cloud-sync-preview`; production `main` is still `61a2b41`)
 - **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
