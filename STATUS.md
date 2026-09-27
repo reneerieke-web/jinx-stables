@@ -8,6 +8,7 @@ Updated: September 26, 2026 (ET)
 - **Backup builder:** Claude, working only on `claude/<task>` when the baton is explicitly handed over
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `6543f03` — SheetJS 0.20.3 core upgrade and spreadsheet import limits, following tier XSS fix `77a17b0`
+- **Production head:** `b3175a8` — `main` fast-forwarded to the approved `cloud-sync-preview` release; this follow-up status commit records the completed production verification
 - **Review status:** Codex reviewed both Claude security commits, confirmed the embedded SheetJS file is byte-for-byte identical to the official 0.20.3 core build, and merged them with the production-origin allowlist update; Renee approved the resulting preview on phone and desktop
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
@@ -40,6 +41,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - SheetJS is upgraded from 0.18.5 to the 0.20.3 core build (`6543f03`), with 5 MB and 2,000-row import limits and formulas/HTML disabled while parsing. Codex downloaded the official file from `cdn.sheetjs.com`; it and the embedded copy are byte-for-byte identical at 507,212 bytes with SHA-256 `197255b0c278588117e45c14c1b25398562864cd9ffa9752c4b4d29f6d9bfd27`.
 - Launch Step 2 completed: `https://jinxsstables.com` and `https://www.jinxsstables.com` are included in `CLOUD_ALLOWED_ORIGINS`, ready for the later custom-domain connection.
 - Launch Step 3 approved for production: Renee tested the preview on phone and desktop, and both exported workbooks matched exactly at 77 horses, 67 columns, and identical cell contents.
+- Launch Step 3 completed: `main` was fast-forwarded to the approved release at `b3175a8`. Production displayed the current welcome screen and Discord sign-in, and Renee confirmed the signed-in production stable on both phone and desktop with 77 total horses.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
