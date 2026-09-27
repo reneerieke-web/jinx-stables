@@ -43,6 +43,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Launch Step 3 approved for production: Renee tested the preview on phone and desktop, and both exported workbooks matched exactly at 77 horses, 67 columns, and identical cell contents.
 - Launch Step 3 completed: `main` was fast-forwarded to the approved release at `b3175a8`. Production displayed the current welcome screen and Discord sign-in, and Renee confirmed the signed-in production stable on both phone and desktop with 77 total horses.
 - Launch Step 4, Cloudflare apex completed: with Renee's approval, `jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response.
+- Launch Step 4, Cloudflare `www` completed: with Renee's separate approval, `www.jinxsstables.com` was connected to the Production `jinx-stables` Worker. HTTPS was verified live with a `200 OK` response. Both Cloudflare custom domains are now attached.
 - The stray Google-provider test account and its empty stable were deleted after Renee confirmed the exact target. The Discord account and its 77-horse stable were verified intact, and Google Auth was disabled with Renee's approval.
 
 ## Security checkpoint
@@ -54,7 +55,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Complete the remaining custom-domain steps, each with Renee's separate approval: connect `www.jinxsstables.com`, then update the Supabase Site URL and allowed redirect URLs while retaining the workers.dev entries.
+1. Complete the remaining custom-domain steps, each with Renee's separate approval: update the Supabase Site URL, then add the apex and `www` redirect URLs while retaining the workers.dev entries.
 2. Add screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
 3. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
@@ -87,7 +88,7 @@ When `jinxsstables.com` is connected, update these three items together:
 - Do not modify sync, authentication, or stored-data behavior during visual/layout work.
 - Do not change Supabase without Renee’s explicit approval and the baton.
 - Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
-- Do not connect `jinxsstables.com` until production is confirmed and Renee approves each configuration step.
+- Do not alter the connected custom domains or Supabase Auth URL configuration without Renee's explicit approval for each step.
 - Do not begin screenshot sync until the custom domain is live; do not ship the horse-advisor and coat-picker feature until screenshot sync is complete and reviewed.
 - Do not run live attack tests against Renee’s real stable.
 - Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
