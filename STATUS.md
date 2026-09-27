@@ -53,6 +53,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Data-limit Step 1 completed: after Claude's approval, `main` was fast-forwarded to `61a2b41`. The production branch now contains the protected app-side handling before the database limits are applied.
 - Data-limit Step 2 completed: with Renee's approval, she ran `supabase/review/20260927_data_size_limits.sql` in the production Supabase SQL Editor. Supabase reported `Success. No rows returned`, confirming that the transaction committed without an SQL error.
 - Data-limit Step 3 verified read-only by Claude: both CHECK constraints exist and are validated; `enforce_horses_per_stable_limit` is enabled on `public.horses` as a BEFORE INSERT trigger; function EXECUTE is limited to `postgres` and `service_role`; and all 77 existing horse rows pass, with a maximum stored JSON size of 2,470 bytes. Production `main` remains at `61a2b41`, so the app-side limit handling was live before database enforcement began.
+- Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 
 ## Security checkpoint
 
@@ -63,11 +64,12 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 
 ## Next
 
-1. Renee runs the live oversized-notes test on the preview.
-2. Add the privacy note to the site footer.
-3. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
-4. Plan and then build screenshot sync: private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
-5. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
+1. Claude drafts the screenshot-sync plan for Renee to approve before implementation.
+2. Fix the long cloud-limit warning text overlapping the title.
+3. Add the privacy note to the site footer.
+4. Prevent iOS from offering “AutoFill Contact” on the horse Name field.
+5. After plan approval, build screenshot sync with private per-user Supabase Storage, compressed uploads, storage RLS, and an isolation test before release.
+6. Ship the horse advisor, Keep this coat, and screenshot color picker from Claude’s `horse-advisor-and-coat-picker.diff` after screenshot sync.
 
 ## Backlog
 
