@@ -663,6 +663,7 @@
           <div class="modal-note" style="font-size:12px;">Themes are built from plain CSS gradients, so they keep working even with this file opened offline.</div>
         </div>
       </div>
+      <button class="btn" id="feedbackBtn" type="button">Send feedback</button>
       <hr id="headerMenuDivider">
       <button class="btn small logout-btn" id="signOutBtn" type="button" hidden aria-label="Log out of this stable account"><span class="desktop-only">Log out</span><span class="mobile-only">↪ Log out</span></button>
       <button class="btn" id="exchangeBtn"><span class="desktop-only">Log exchange</span><span class="mobile-only">+ Log exchange</span></button>
@@ -4422,6 +4423,82 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
   // close so it never leaks into the next, unrelated modal.
   var activeModalGuard = null;
   function closeModal(){ modalBackdrop.hidden = true; modalBox.innerHTML = ""; activeModalGuard = null; }
+
+  // ---------- Beta feedback (signed-in only; text only) ----------
+  // Reports go to the private public.feedback table (insert-only for users;
+  // nobody can read another user's report). The app never displays
+  // submitted feedback, so its content is never rendered as HTML here.
+  var FEEDBACK_CATEGORIES = [
+    ["bug", "🐛 Something isn't working"],
+    ["confusing", "😕 Confusing or hard to use"],
+    ["idea", "💡 I have an idea"],
+    ["like", "❤️ Something I like"]
+  ];
+  function feedbackSiteFor(host){
+    host = String(host || "").toLowerCase();
+    if(host === "jinxsstables.com" || host === "www.jinxsstables.com" || host === "jinx-stables.renee-rieke.workers.dev") return "production";
+    if(host.indexOf("cloud-sync-preview") === 0) return "preview";
+    return "other";
+  }
+  function feedbackPayload(category, message, doing, env){
+    return {
+      category: category,
+      message: String(message || "").trim().slice(0, 4000),
+      doing: String(doing || "").trim().slice(0, 1000) || null,
+      site: feedbackSiteFor(env.host),
+      app_build: String(env.build || "").slice(0, 64) || null,
+      user_agent: String(env.ua || "").slice(0, 512) || null,
+      viewport: String(env.viewport || "").slice(0, 32) || null
+    };
+  }
+  var FEEDBACK_BUILD = "screenshot-sync+feedback";
+  function openFeedbackModal(){
+    if(!cloudReady || !cloudClient || !cloudUserId){
+      modalBox.innerHTML = '<h2>Send feedback</h2><div class="modal-note">Sign in with Discord to send feedback from here, or message Renee on Discord.</div><div class="modal-actions"><button class="btn" id="mCancel">Close</button></div>';
+      el("mCancel").addEventListener("click", closeModal);
+      modalBackdrop.hidden = false;
+      return;
+    }
+    var opts = FEEDBACK_CATEGORIES.map(function(c, i){
+      return '<label style="display:flex; gap:8px; align-items:center; padding:4px 0;"><input type="radio" name="fbCat" value="' + c[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + esc(c[1]) + '</label>';
+    }).join("");
+    modalBox.innerHTML =
+      '<h2>Send feedback</h2>' +
+      '<div class="field"><label>What kind of feedback is this?</label>' + opts + '</div>' +
+      '<div class="field"><label for="fbMessage">Tell us what happened or what you\'re thinking</label><textarea id="fbMessage" rows="5" maxlength="4000"></textarea></div>' +
+      '<div class="field"><label for="fbDoing">What were you doing when you noticed it? <span class="hint">optional</span></label><textarea id="fbDoing" rows="2" maxlength="1000"></textarea></div>' +
+      '<div class="modal-note">Your device and browser type are included automatically. Your report is linked to your account so Renee can follow up, and other users can never see it. Want to add a screenshot? Send it to Renee on Discord.</div>' +
+      '<div id="fbError" class="modal-note" style="color:var(--danger);" hidden></div>' +
+      '<div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn primary" id="fbSend">Send feedback</button></div>';
+    modalBackdrop.hidden = false;
+    el("mCancel").addEventListener("click", closeModal);
+    el("fbMessage").focus();
+    el("fbSend").addEventListener("click", async function(){
+      var btn = this;
+      var picked = modalBox.querySelector('input[name="fbCat"]:checked');
+      var payload = feedbackPayload(picked ? picked.value : "bug", el("fbMessage").value, el("fbDoing").value, {
+        host: window.location.hostname, build: FEEDBACK_BUILD, ua: navigator.userAgent,
+        viewport: window.innerWidth + "x" + window.innerHeight
+      });
+      var err = el("fbError");
+      if(!payload.message){ err.textContent = "Please write a little about it first."; err.hidden = false; el("fbMessage").focus(); return; }
+      btn.disabled = true; btn.textContent = "Sending…"; err.hidden = true;
+      try{
+        // No .select(): users cannot read feedback back, only insert it.
+        var res = await cloudClient.from("feedback").insert(payload);
+        if(res.error) throw res.error;
+        modalBox.innerHTML = '<h2>Thank you! 🐴</h2><div class="modal-note">Your feedback was sent.</div><div class="modal-actions"><button class="btn primary" id="mCancel">Close</button></div>';
+        el("mCancel").addEventListener("click", closeModal);
+      }catch(e){
+        var msg = String((e && e.message) || "");
+        err.textContent = /limit reached/i.test(msg)
+          ? "You've sent a lot of feedback today, thank you! Please message Renee on Discord for anything else today."
+          : "Feedback couldn't be sent right now. Please try again, or message Renee on Discord.";
+        err.hidden = false;
+        btn.disabled = false; btn.textContent = "Send feedback";
+      }
+    });
+  }
   function attemptCloseModal(){
     if(activeModalGuard && activeModalGuard()){ confirmDiscard(closeModal); return; }
     closeModal();
@@ -6455,6 +6532,7 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     document.querySelectorAll("#dataMenuBtn,#appearanceBtn").forEach(function(btn){ btn.setAttribute("aria-expanded", "false"); });
   });
   document.getElementById("exchangeBtn").addEventListener("click", function(){ closeMobileMenu(); closeDesktopMenu(); });
+  document.getElementById("feedbackBtn").addEventListener("click", function(){ closeMobileMenu(); closeDesktopMenu(); openFeedbackModal(); });
   document.getElementById("signOutBtn").addEventListener("click", function(){ closeMobileMenu(); closeDesktopMenu(); });
 
   // Mirror the existing status element into the phone-only dot without

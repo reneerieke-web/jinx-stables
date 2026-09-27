@@ -35,6 +35,7 @@ const makeRow = (id, name, tier = "6", sex = "Female", level = 1) =>
 const db = {
   horses: [makeRow("h_one", "Cannoli", "8", "Male", 15), makeRow("h_two", "Taffy", "7", "Female", 16), makeRow("h_three", "NillaCrumpet", "6", "Female", 9)],
   stables: [{ id: STABLE, owner_id: UID, name: "Test Stable" }],
+  feedback: [],
 };
 const storage = new Map(); // path -> {b64, type, updated_at}
 let bucketExists = true;
@@ -81,7 +82,17 @@ function runQuery(spec) {
     });
     return { data: JSON.parse(JSON.stringify(out)), error: null };
   }
-  if (spec.kind === "insert") { rows.push({ ...spec.payload }); return { data: spec.payload, error: null }; }
+  if (spec.kind === "insert") {
+    if (spec.table === "feedback") {
+      // Mirrors supabase/review/20260927_feedback.sql: insert-only, content columns only, no read-back.
+      const allowed = ["category", "message", "doing", "site", "app_build", "user_agent", "viewport"];
+      if (Object.keys(spec.payload).some((k) => !allowed.includes(k))) return { data: null, error: { code: "42501", message: "permission denied for table feedback" } };
+      if (spec.columns) return { data: null, error: { code: "42501", message: "permission denied for table feedback" } };
+      rows.push({ ...spec.payload, user_id: UID, status: "new" });
+      return { data: null, error: null };
+    }
+    rows.push({ ...spec.payload }); return { data: spec.payload, error: null };
+  }
   return { data: null, error: { message: "unsupported" } };
 }
 
@@ -418,6 +429,24 @@ async function openHorse(page, name) {
   db.horses = db.horses.filter((h) => !/^x\d{4}$/.test(h.id) && h.id !== "zz_late");
   ok("cleanup: pages past 1,000 rows, keeps valid pictures, removes purged horses' files");
 
+  // 10b. Send feedback: insert-only, no read-back, auto context.
+  await A.evaluate(() => document.getElementById("feedbackBtn").click());
+  await A.waitForSelector("#fbMessage");
+  await A.click('input[name="fbCat"][value="confusing"]');
+  await A.fill("#fbMessage", "Could not find the delete button <b>at first</b>");
+  await A.fill("#fbDoing", "editing Taffy");
+  await A.click("#fbSend");
+  await A.waitForSelector("text=Your feedback was sent.");
+  const fb = db.feedback[0];
+  assert.equal(db.feedback.length, 1);
+  assert.equal(fb.category, "confusing");
+  assert.equal(fb.message, "Could not find the delete button <b>at first</b>");
+  assert.equal(fb.doing, "editing Taffy");
+  assert.equal(fb.site, "other", "jinx.test test host is neither production nor preview");
+  assert.ok(fb.user_agent && fb.viewport, "device context captured");
+  await A.click("#mCancel");
+  ok("feedback: sent with category, text and device context; insert-only");
+
   // 11. Guest mode: device only, no storage calls.
   const before = storageLog.length;
   const G = await device(browser, { guest: true });
@@ -432,6 +461,9 @@ async function openHorse(page, name) {
   await sleep(2000);
   assert.equal(storageLog.length, before, "guest never calls storage");
   assert.equal(await cardFor(G, "GuestHorse").locator(".badge.photo").count(), 1);
+  await G.evaluate(() => document.getElementById("feedbackBtn").click());
+  await G.waitForSelector("text=Sign in with Discord to send feedback");
+  assert.equal(db.feedback.length, 1, "guest cannot submit feedback");
   ok("guest mode: device only, no storage calls");
 
   for (const p of [A, B, C, D, G]) assert.deepEqual(p.errors, [], "no page errors");
