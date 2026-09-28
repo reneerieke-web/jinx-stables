@@ -16,6 +16,17 @@ Updated: September 28, 2026 (ET)
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
+## Claude resync review (Sept 28, read-only)
+
+Actions taken: read all branches, STATUS.md and both plan docs; read-only Supabase checks; rendered and tested `946cca2` in Chromium. No merges, deploys, SQL, Supabase, Storage or production changes.
+
+- `main` and `cloud-sync-preview` are both at `0781eca6`. Production therefore includes screenshot sync, the cache fix `061b812`, text feedback, and the mobile Quick Add fix.
+- **Stale lines below:** the "Production track" item still says `main` is at `61a2b41` with no screenshot sync, and the "do not use Restore App Backup on production" caution was written for that older production. Both should be updated by the next baton holder.
+- Supabase (read-only, Sept 28): 1 account, 1 stable, 78 live horses, 28 files in `horse-screenshots`, 3 feedback rows. No community tester accounts yet. `public.feedback` has column-level INSERT only for authenticated users; `enforce_feedback_rate_limit` EXECUTE is limited to postgres and service_role. No `private` or `feedback_private` schema and no `feedback-screenshots` bucket exist, so feedback screenshots are **not applied**.
+- Feedback screenshots rev 2 (`claude/focused-bardeen-ikb2lu` @ `71326c5`) still has two open review items: (1) the SQL creates a generic `private` schema instead of a dedicated `feedback_private`; (2) `tests/storage/run_feedback_parallel_test.sh` only prints FAIL and exits 0, and its `-le 5` check passes when zero inserts succeed. It should require exactly 5 commits and exit non-zero otherwise. The branch is also based on `1e82939` and needs rebasing onto `0781eca6`.
+- Obsolete branch `codex/mobile-quick-add-fix` (`0b4e6d8`) still exists. Do not merge it; consider deleting it.
+- Design Lab `946cca2` verified: capsule/search/sort parity, zero storage writes from toggling, editor round-trip both ways, 600 px fallback with no leftovers. Renee accepted the architecture and asked for a denser v2 (see Design Lab section).
+
 ## Design Lab experiment (branch only)
 
 - Branch: `codex/design-lab-stable-ledger`, built on the reviewed foundation commit `c9166b46`, which is based directly on `cloud-sync-preview` at `0781eca6`.
