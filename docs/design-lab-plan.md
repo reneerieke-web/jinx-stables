@@ -1,6 +1,6 @@
 # Design Lab: desktop roster-view experiment
 
-Status: foundation only; no alternate UI has been implemented.
+Status: first visual interpretation implemented on the isolated Design Lab branch for review; not merged or deployed.
 
 Base: `cloud-sync-preview` at `0781eca6ea8a797c36e378b77a817d000f121630`.
 
@@ -8,7 +8,22 @@ Base: `cloud-sync-preview` at `0781eca6ea8a797c36e378b77a817d000f121630`.
 
 Design Lab is a temporary, desktop-only presentation experiment for the horse roster. It will let us explore a more photography-forward, editorial stable-catalog treatment while the current roster remains available as the control.
 
-This foundation does **not** redesign the roster, expose a Design Lab control, or change application behavior.
+The first branch-only interpretation now adds a desktop presentation toggle and an alternate Stable Ledger renderer. The current roster remains the default control. Nothing in this work has been merged or deployed.
+
+## Standalone visual prototype
+
+`prototypes/design-lab-stable-ledger.html` is a disconnected visual reference for a possible Stable Ledger / Field Journal direction. It is deliberately outside `public/` and is not loaded by the application.
+
+The prototype includes:
+
+- a photograph-led, borderless ledger row;
+- typography-led tier, sex, name, and level hierarchy;
+- thin rules and restrained metadata instead of nested cards and pills;
+- compact typography-only rows for horses without photographs (no large empty image rectangle);
+- a pure `DesignLabLedger.render(root, visibleHorses, adapters)` sample API; and
+- a desktop-only boundary that replaces the prototype with an explanatory message at 640 px and below.
+
+Its frozen example rows exist only to make the standalone file visually inspectable. They are not application records, are never imported by `public/index.html`, and have no persistence, sync, database, storage, authentication, or mutation path. Actual application integration must pass the existing visible horse objects and route `openHorse(id)` to the existing `openEditor(id)`.
 
 ## Non-negotiable data boundary
 
@@ -48,12 +63,26 @@ same visible horse object references
                     +-- openEditor(h.id)
 ```
 
-Recommended future functions:
+Implemented presentation boundary:
 
 - `selectVisibleHorses()` — extracts the existing `sortHorses(horses.filter(matches))` selection without changing its behavior.
 - `renderCurrentRoster(visible)` — the present card-building loop, moved without visual or behavioral changes.
-- `renderDesignLabRoster(visible)` — presentation-only markup for the approved experiment.
-- `renderRosterView()` — chooses the renderer, but must force the current renderer at mobile widths.
+- `renderDesignLab(visible)` and `renderDesignLabHorse(horse)` — presentation-only markup for the experiment.
+- `renderGrid()` — computes `visibleHorses` once, then chooses the renderer while forcing the current renderer at mobile widths.
+
+The implementation follows this invariant:
+
+```js
+var visibleHorses = selectVisibleHorses();
+
+if (designLabDesktopMedia.matches && desktopRosterViewMode === "design-lab") {
+  renderDesignLab(visibleHorses);
+} else {
+  renderCurrentRoster(visibleHorses);
+}
+```
+
+No renderer creates or owns a second horse array. The Design Lab row retains the original horse ID and opens the existing editor with `openEditor(horse.id)`.
 
 Because Jinx's Stables is currently a single-file application with many shared display helpers, the first implementation should use a clearly delimited Design Lab block in `public/index.html` rather than exporting horse state or business logic into a parallel application. Design Lab-specific CSS should use a `.design-lab` namespace. If the experiment grows, presentation-only code may later move to an isolated static file, but the canonical collection and editor must remain in the existing application.
 
@@ -63,11 +92,11 @@ Design Lab should be entered through a desktop-only **presentation toggle**, ten
 
 It should not be added to `CAPSULES`: capsules describe horse lifecycle/status groups, while Design Lab describes presentation. Keeping those concepts separate preserves existing counts, filters, URLs, and capsule behavior.
 
-The initial control should:
+The initial control:
 
 - default to `Current roster`;
 - preserve the active capsule, search, filters, and sort when switching views;
-- be unavailable at the existing mobile breakpoint (`max-width: 640px`); and
+- is unavailable at the existing mobile breakpoint (`max-width: 640px`); and
 - automatically fall back to the current renderer if the viewport becomes mobile-sized.
 
 No Design Lab preference should be synced to Supabase. A session-only preference is safest for the first experiment; persistent presentation preference requires a separate approval.
@@ -117,10 +146,21 @@ Design Lab can be removed by deleting its namespaced presentation code/styles an
 - Design Lab cannot appear at 320, 375, 390, 430, or any width at or below 640 px.
 - Switching views and removing the experiment do not modify stored horse data.
 
-## Not part of this foundation task
+## First visual interpretation
 
-- No alternate roster markup or styling.
-- No photography, typography, divider, whitespace, card, or field-journal redesign.
-- No visible Design Lab entry or toggle.
-- No changes to `public/index.html`.
+The initial branch-only interpretation treats the supplied ledger example as a visual language rather than a literal template:
+
+- horses with an existing screenshot use a landscape photograph and editorial information hierarchy;
+- horses without a screenshot use a tighter, full-width typographic row instead of a blank photo placeholder;
+- Dream and Mythical subtype names become a single quiet designation rather than a group of badges;
+- level, skills, breedings, location/project, and status are typography and dividers rather than nested cards and pills; and
+- all row activation routes into the existing editor.
+
+The renderer reads an already-cached thumbnail through the existing read-only screenshot accessor. It does not upload, download, modify screenshot pointers, or start sync work.
+
+## Still not part of this experiment
+
+- No new editor, inline editing, or Design Lab mutation controls.
+- No second horse collection or Design Lab persistence.
+- No mobile Design Lab UI.
 - No deployment or merge.

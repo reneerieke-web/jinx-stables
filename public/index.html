@@ -162,6 +162,7 @@
   .chip.active{background:var(--gold); color:#20180B; border-color:var(--gold);}
 
   #grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
+  #grid[hidden]{display:none;}
   .card{background:var(--panel); border:1px solid var(--border); border-top:3px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; text-align:left; color:var(--text);}
   .card:hover{box-shadow:var(--shadow);}
   .card .top-row{display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;}
@@ -192,6 +193,61 @@
   .kv-line b{color:var(--text); font-weight:600;}
 
   .empty{padding:48px 0; text-align:center; color:var(--text-soft); font-size:14.5px;}
+
+  /* ---- Design Lab: desktop-only alternate roster presentation ----
+     This is deliberately a renderer, not a second horse collection. The
+     control and experimental views receive the same visible horse objects. */
+  .design-lab-switch{display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:-6px;}
+  .design-lab-switch-label{font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-faint);}
+  .design-lab-switch-controls{display:inline-flex; padding:3px; border:1px solid var(--border); border-radius:9px; background:var(--panel);}
+  .design-lab-switch button{border:0; border-radius:6px; padding:7px 11px; background:transparent; color:var(--text-soft);
+    font-size:12px; font-weight:600;}
+  .design-lab-switch button[aria-pressed="true"]{background:var(--panel-raised); color:var(--gold);}
+  .design-lab-ledger{width:100%;}
+  .design-lab-header{display:flex; justify-content:space-between; align-items:flex-end; gap:28px; padding:24px 0 22px;
+    border-bottom:1px solid var(--border);}
+  .design-lab-kicker{margin:0 0 7px; font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px;
+    letter-spacing:.16em; color:var(--text-faint);}
+  .design-lab-header h2{font-size:clamp(32px,4vw,50px); font-weight:500; line-height:1;}
+  .design-lab-summary{display:flex; gap:20px; color:var(--text-faint); font-size:12px; white-space:nowrap;}
+  .design-lab-horse{display:grid; grid-template-columns:230px minmax(0,1fr); gap:34px; padding:30px 0;
+    border-bottom:1px solid var(--border); cursor:pointer; outline:none;}
+  .design-lab-horse.no-photo{grid-template-columns:minmax(0,1fr); padding-block:24px;}
+  .design-lab-horse:hover .design-lab-name,.design-lab-horse:focus-visible .design-lab-name{color:var(--gold);}
+  .design-lab-horse:focus-visible{box-shadow:0 0 0 2px var(--gold); box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 70%,transparent);}
+  .design-lab-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--panel);}
+  .design-lab-photo img{display:block; width:100%; height:100%; object-fit:cover; transition:transform 220ms ease;}
+  .design-lab-horse:hover .design-lab-photo img,.design-lab-horse:focus-visible .design-lab-photo img{transform:scale(1.025);}
+  .design-lab-photo-loading{position:absolute; inset:0; display:grid; place-content:center; color:var(--text-faint);
+    font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.1em; text-transform:uppercase;}
+  .design-lab-main{min-width:0; display:flex; flex-direction:column; justify-content:space-between;}
+  .design-lab-heading{display:flex; justify-content:space-between; align-items:flex-start; gap:24px;}
+  .design-lab-eyebrow{margin:0 0 5px; font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px;
+    letter-spacing:.13em; color:var(--text-faint); text-transform:uppercase;}
+  .design-lab-horse.special .design-lab-eyebrow{color:var(--gold);}
+  .design-lab-name{margin:0; overflow-wrap:anywhere; font-size:32px; font-weight:500; line-height:1.05; transition:color 160ms ease;}
+  .design-lab-level{flex:0 0 auto; font-family:"Spectral",Georgia,serif; font-size:42px; font-weight:400; line-height:.9;
+    color:var(--text-faint); text-align:right;}
+  .design-lab-level::before{content:"LV"; display:block; margin-bottom:3px; font-family:"IBM Plex Mono","Courier New",monospace;
+    font-size:8px; letter-spacing:.14em;}
+  .design-lab-facts{display:grid; grid-template-columns:repeat(3,minmax(110px,1fr)); margin:26px 0 20px;}
+  .design-lab-fact{padding-right:20px; min-width:0;}
+  .design-lab-fact + .design-lab-fact{padding-left:20px; border-left:1px solid var(--border);}
+  .design-lab-fact-label{display:block; margin-bottom:4px; font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--text-faint);}
+  .design-lab-fact strong{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:500;}
+  .design-lab-footer{display:flex; justify-content:space-between; align-items:center; gap:20px; color:var(--text-faint); font-size:12px;}
+  .design-lab-footer button{padding:0; border:0; background:transparent; color:var(--text); font:inherit;}
+  .design-lab-footer button:hover,.design-lab-footer button:focus-visible{text-decoration:underline;}
+  .design-lab-no-photo-note{font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text-faint);}
+  @media (max-width:800px) and (min-width:641px){
+    .design-lab-horse{grid-template-columns:190px minmax(0,1fr); gap:24px;}
+    .design-lab-horse.no-photo{grid-template-columns:minmax(0,1fr);}
+    .design-lab-facts{grid-template-columns:repeat(3,minmax(90px,1fr));}
+  }
+  @media (prefers-reduced-motion:reduce){.design-lab-photo img,.design-lab-name{transition:none;}}
 
   #backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(1px); z-index:20;}
   #editor{
@@ -305,6 +361,7 @@
   #cloudStatus[data-state="saved"]{color:var(--keeper);}
   .desktop-only{display:inline;}
   @media (min-width:641px){
+    .design-lab-switch{display:flex;}
     header.top{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
       gap:18px; flex-wrap:nowrap; padding:14px 20px; border:1px solid var(--border); border-radius:14px;
       background:rgba(36,43,36,.86); background:color-mix(in srgb, var(--panel) 86%, transparent); box-shadow:0 8px 24px rgba(0,0,0,.18);}
@@ -778,7 +835,15 @@
     </div>
   </div>
 
+  <div class="design-lab-switch desktop-only" id="desktopRosterViewSwitch" aria-label="Desktop roster presentation">
+    <span class="design-lab-switch-label">Roster view</span>
+    <span class="design-lab-switch-controls">
+      <button type="button" id="currentRosterViewBtn" aria-pressed="true">Current roster</button>
+      <button type="button" id="designLabViewBtn" aria-pressed="false">Design Lab</button>
+    </span>
+  </div>
   <main id="grid"></main>
+  <main id="designLabGrid" class="design-lab-ledger" aria-label="Design Lab horse roster" hidden></main>
   <div class="empty" id="emptyState" hidden></div>
 
   <footer id="appFooter">Jinx’s Stables — Created by Renee Rieke · Independent fan-made tool for Black Desert Online. This is unofficial content which contains copyrighted materials and IP from Pearl Abyss, and is not official/endorsed content. Black Desert Online and related trademarks are the property of Pearl Abyss. Not affiliated with or endorsed by Pearl Abyss. Site design, text, and original code © 2026 Renee Rieke. Artwork created for this fan project. Third-party software is used under its respective licenses.</footer>
@@ -1977,6 +2042,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
 
   // ---------- DOM refs ----------
   var grid = document.getElementById("grid");
+  var designLabGrid = document.getElementById("designLabGrid");
+  var currentRosterViewBtn = document.getElementById("currentRosterViewBtn");
+  var designLabViewBtn = document.getElementById("designLabViewBtn");
   var emptyState = document.getElementById("emptyState");
   var countLabel = document.getElementById("countLabel");
   var capsuleTabs = document.getElementById("capsuleTabs");
@@ -2336,15 +2404,24 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     return sorted;
   }
 
-  function renderGrid(){
-    if(typeof refreshSearchClear === "function") refreshSearchClear();
-    var visible = sortHorses(horses.filter(matches));
-    var capsuleTotal = horses.filter(function(h){return capsuleOf(h)===state.capsule;}).length;
-    countLabel.textContent = visible.length + " of " + capsuleTotal + " in this stable · " + horses.length + " total";
+  // Design Lab is a presentation choice only. It is intentionally session
+  // scoped: no localStorage, cloud field, or alternate horse collection.
+  var desktopRosterViewMode = "current";
+  var designLabDesktopMedia = window.matchMedia("(min-width: 641px)");
+
+  function selectVisibleHorses(){
+    return sortHorses(horses.filter(matches));
+  }
+
+  function syncDesktopRosterViewControls(){
+    var designLabActive = designLabDesktopMedia.matches && desktopRosterViewMode === "design-lab";
+    currentRosterViewBtn.setAttribute("aria-pressed", designLabActive ? "false" : "true");
+    designLabViewBtn.setAttribute("aria-pressed", designLabActive ? "true" : "false");
+  }
+
+  function renderCurrentRoster(visibleHorses){
     grid.innerHTML = "";
-    emptyState.hidden = visible.length>0;
-    emptyState.textContent = emptyMessage();
-    visible.forEach(function(h){
+    visibleHorses.forEach(function(h){
       var card = document.createElement("button");
       card.type="button";
       card.className="card";
@@ -2354,6 +2431,177 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       card.innerHTML = cardBody(h);
       grid.appendChild(card);
     });
+  }
+
+  function designLabElement(tag, className, textValue){
+    var node = document.createElement(tag);
+    if(className) node.className = className;
+    if(textValue !== undefined) node.textContent = String(textValue);
+    return node;
+  }
+
+  function designLabCapsuleLabel(){
+    var found = CAPSULES.find(function(c){ return c.key === state.capsule; });
+    return found ? found.label : "Stable Ledger";
+  }
+
+  function designLabDesignation(horse){
+    if(isSpecialSubtypeTier(horse.tier) && horse.subtype){
+      return SUBTYPE_LABEL[horse.subtype] || horse.subtype;
+    }
+    return (TIER_LABEL[horse.tier] || horse.tier || "Horse") + " · " + (horse.sex || "Unknown");
+  }
+
+  function designLabFact(label, value){
+    var fact = designLabElement("div", "design-lab-fact");
+    fact.appendChild(designLabElement("span", "design-lab-fact-label", label));
+    fact.appendChild(designLabElement("strong", "", value === null || value === undefined || value === "" ? "—" : value));
+    return fact;
+  }
+
+  function loadDesignLabPhoto(photo, horse){
+    // Read the existing local screenshot cache only. This does not download,
+    // upload, save, alter a pointer, or start a sync job.
+    getScreenshot(horse.id).then(function(rec){
+      if(!photo.isConnected || photo.dataset.horseId !== String(horse.id)) return;
+      if(!rec || !(rec.thumb || rec.full)){
+        photo.hidden = true;
+        var row = photo.closest(".design-lab-horse");
+        if(row) row.classList.add("no-photo");
+        return;
+      }
+      var image = document.createElement("img");
+      image.alt = (horse.name || "Horse") + " screenshot";
+      image.loading = "lazy";
+      image.src = rec.thumb || rec.full;
+      photo.replaceChildren(image);
+    }).catch(function(){
+      if(photo.isConnected){
+        photo.hidden = true;
+        var row = photo.closest(".design-lab-horse");
+        if(row) row.classList.add("no-photo");
+      }
+    });
+  }
+
+  function renderDesignLabHorse(horse){
+    var hasPhoto = hasScreenshot(horse.id) || !!screenshotPointerV(horse);
+    var article = designLabElement("article", "design-lab-horse" + (hasPhoto ? " has-photo" : " no-photo"));
+    article.dataset.horseId = horse.id;
+    article.tabIndex = 0;
+    article.setAttribute("role", "button");
+    article.setAttribute("aria-label", "Open " + (horse.name || "horse"));
+    if(isSpecialSubtypeTier(horse.tier)) article.classList.add("special");
+
+    // Presentation only. Never clone, save, or persist from Design Lab.
+    if(hasPhoto){
+      var photo = designLabElement("div", "design-lab-photo");
+      photo.dataset.horseId = horse.id;
+      photo.appendChild(designLabElement("span", "design-lab-photo-loading", "Loading photograph"));
+      article.appendChild(photo);
+      loadDesignLabPhoto(photo, horse);
+    }
+
+    var main = designLabElement("div", "design-lab-main");
+    var heading = designLabElement("div", "design-lab-heading");
+    var title = designLabElement("div");
+    title.appendChild(designLabElement("p", "design-lab-eyebrow", designLabDesignation(horse)));
+    title.appendChild(designLabElement("h3", "design-lab-name", horse.name || "Unnamed horse"));
+    heading.appendChild(title);
+    heading.appendChild(designLabElement("strong", "design-lab-level", horse.level || 0));
+    main.appendChild(heading);
+
+    var facts = designLabElement("div", "design-lab-facts");
+    facts.appendChild(designLabFact("Skills", totalSkillCount(horse)));
+    facts.appendChild(designLabFact("Breedings", horse.breedings));
+    if(horse.location){
+      facts.appendChild(designLabFact("Location", horse.location));
+    } else {
+      var projectName = horse.project && horse.project.type && horse.project.type !== "None" ? horse.project.type : "Unassigned";
+      facts.appendChild(designLabFact("Project", projectName));
+    }
+    main.appendChild(facts);
+
+    var footer = designLabElement("div", "design-lab-footer");
+    var footerNote = designLabElement("span", "", statusLabel(horse.status || "Undetermined"));
+    if(!hasPhoto){
+      footerNote.appendChild(document.createTextNode(" · "));
+      footerNote.appendChild(designLabElement("span", "design-lab-no-photo-note", "No photograph"));
+    }
+    footer.appendChild(footerNote);
+    var openButton = designLabElement("button", "", "Open horse →");
+    openButton.type = "button";
+    footer.appendChild(openButton);
+    main.appendChild(footer);
+    article.appendChild(main);
+
+    function open(){ openEditor(horse.id); }
+    article.addEventListener("click", open);
+    article.addEventListener("keydown", function(event){
+      if(event.key === "Enter" || event.key === " "){
+        event.preventDefault();
+        open();
+      }
+    });
+    openButton.addEventListener("click", function(event){
+      event.stopPropagation();
+      open();
+    });
+    return article;
+  }
+
+  function renderDesignLab(visibleHorses){
+    designLabGrid.replaceChildren();
+    var header = designLabElement("header", "design-lab-header");
+    var title = designLabElement("div");
+    title.appendChild(designLabElement("p", "design-lab-kicker", "DESIGN LAB · STABLE LEDGER"));
+    title.appendChild(designLabElement("h2", "", designLabCapsuleLabel()));
+    header.appendChild(title);
+    var summary = designLabElement("div", "design-lab-summary");
+    summary.appendChild(designLabElement("span", "", visibleHorses.length + " shown"));
+    summary.appendChild(designLabElement("span", "", horses.length + " recorded"));
+    header.appendChild(summary);
+    designLabGrid.appendChild(header);
+    visibleHorses.forEach(function(horse){ designLabGrid.appendChild(renderDesignLabHorse(horse)); });
+  }
+
+  function renderGrid(){
+    if(typeof refreshSearchClear === "function") refreshSearchClear();
+    var visibleHorses = selectVisibleHorses();
+    var capsuleTotal = horses.filter(function(h){return capsuleOf(h)===state.capsule;}).length;
+    countLabel.textContent = visibleHorses.length + " of " + capsuleTotal + " in this stable · " + horses.length + " total";
+    emptyState.hidden = visibleHorses.length>0;
+    emptyState.textContent = emptyMessage();
+    var useDesignLab = designLabDesktopMedia.matches && desktopRosterViewMode === "design-lab";
+    grid.hidden = useDesignLab;
+    designLabGrid.hidden = !useDesignLab;
+    syncDesktopRosterViewControls();
+    if(useDesignLab){
+      grid.innerHTML = "";
+      renderDesignLab(visibleHorses);
+    } else {
+      designLabGrid.replaceChildren();
+      renderCurrentRoster(visibleHorses);
+    }
+  }
+
+  currentRosterViewBtn.addEventListener("click", function(){
+    desktopRosterViewMode = "current";
+    renderGrid();
+  });
+  designLabViewBtn.addEventListener("click", function(){
+    if(!designLabDesktopMedia.matches) return;
+    desktopRosterViewMode = "design-lab";
+    renderGrid();
+  });
+  function handleDesignLabBreakpoint(){
+    if(!designLabDesktopMedia.matches) desktopRosterViewMode = "current";
+    renderGrid();
+  }
+  if(designLabDesktopMedia.addEventListener){
+    designLabDesktopMedia.addEventListener("change", handleDesignLabBreakpoint);
+  } else if(designLabDesktopMedia.addListener){
+    designLabDesktopMedia.addListener(handleDesignLabBreakpoint);
   }
 
   function renderAll(){

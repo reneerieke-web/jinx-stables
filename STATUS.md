@@ -21,6 +21,7 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Purpose: establish guardrails for a future desktop-only alternate roster presentation while keeping the current roster as the control.
 - Plan: `docs/design-lab-plan.md`.
 - Current state: documentation only. No Design Lab entry, renderer, markup, styling, or app behavior exists yet; `public/index.html` is unchanged.
+- Standalone reference: `prototypes/design-lab-stable-ledger.html` demonstrates the proposed borderless Stable Ledger visual language and a safe renderer-adapter shape. It is outside `public/`, disconnected from the app, and uses only frozen preview examples.
 - Hard boundary: Design Lab must render the existing `horses` objects after the existing capsule/filter/search/sort selection. It must not create, copy, migrate, transform, seed, sync, or persist a second horse collection.
 - Editing boundary: horse activation must use the existing `openEditor(h.id)` editor. The experimental renderer does not gain direct mutation controls.
 - Mobile boundary: no entry or alternate renderer at the existing `max-width: 640px` phone breakpoint; the current mobile experience and Quick Add remain untouched.
@@ -91,6 +92,15 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - **Non-blocking:** Supabase leaked-password protection is off, which is not applicable while sign-in is Discord-only.
 
 ## Next
+
+### Design Lab (isolated branch only)
+
+- A first desktop-only Stable Ledger interpretation is in progress on the isolated Design Lab branch. It is not merged or deployed.
+- `renderGrid()` selects one `visibleHorses` array and passes those same horse object references to either the untouched Current Roster renderer or the Design Lab renderer. Design Lab has no horse collection, save path, schema, storage key, or sync behavior of its own.
+- Current Roster remains the default control. Design Lab is a session-only desktop presentation toggle and is forced off at 640 px and below.
+- Design Lab rows open the existing `openEditor(horse.id)`. Horses with cached screenshots receive a landscape-photo treatment; horses without screenshots receive compact typography-only rows rather than empty photo boxes. Dream/Mythical designation is understated text, not extra pills.
+- This work must remain separate from feedback-screenshot/Supabase work and must not touch `main`, production, SQL, Storage, authentication, screenshot sync behavior, imports, Recently Deleted, or horse persistence.
+- Full guardrails and rollback/promotion rules: `docs/design-lab-plan.md`. Standalone visual reference: `prototypes/design-lab-stable-ledger.html`.
 
 Release sequence (agreed Sept 27; finish what is built, no new features):
 

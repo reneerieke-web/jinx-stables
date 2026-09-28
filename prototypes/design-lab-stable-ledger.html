@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jinx's Stables — Design Lab Stable Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Spectral:wght@400;500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /*
+      DESIGN LAB — standalone desktop prototype only.
+
+      This file is not loaded by public/index.html. It does not read or write
+      localStorage, IndexedDB, Supabase, Storage, authentication, sync queues,
+      screenshots, feedback, imports, exports, or real horse records.
+    */
+
+    :root {
+      color-scheme: dark;
+      --ink: #0d100d;
+      --panel: #171c17;
+      --text: #eee9de;
+      --text-soft: #c7c0b2;
+      --text-faint: #8e9589;
+      --border: rgba(205, 190, 156, .22);
+      --gold: #c99a44;
+      --green: #8ca27d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(129, 144, 108, .12), transparent 36rem),
+        var(--ink);
+      color: var(--text);
+      font-family: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font-family: inherit; }
+
+    .prototype-notice {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(201, 154, 68, .08);
+      color: var(--text-soft);
+      font-size: 12px;
+    }
+
+    .prototype-notice strong {
+      color: var(--gold);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .prototype-result {
+      color: var(--text-faint);
+      text-align: right;
+    }
+
+    .mobile-boundary {
+      display: none;
+      min-height: 100vh;
+      place-content: center;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .mobile-boundary h1 {
+      margin: 0 0 12px;
+      font-family: "Spectral", Georgia, serif;
+      font-size: 30px;
+      font-weight: 500;
+    }
+
+    .mobile-boundary p {
+      max-width: 32rem;
+      margin: 0;
+      color: var(--text-faint);
+      line-height: 1.6;
+    }
+
+    /* DESIGN LAB — desktop prototype */
+
+    .stable-ledger {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 54px 48px 100px;
+    }
+
+
+    /* ---------- Ledger heading ---------- */
+
+    .ledger-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+
+      padding-bottom: 24px;
+      margin-bottom: 6px;
+
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ledger-kicker {
+      margin: 0 0 8px;
+
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      letter-spacing: .16em;
+
+      color: var(--text-faint);
+    }
+
+    .ledger-header h1 {
+      margin: 0;
+
+      font-family: "Spectral", Georgia, serif;
+      font-size: clamp(34px, 4vw, 54px);
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .ledger-summary {
+      display: flex;
+      gap: 22px;
+
+      font-size: 13px;
+      color: var(--text-faint);
+    }
+
+
+    /* ---------- Horse ---------- */
+
+    .ledger-horse {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 34px;
+
+      padding: 30px 0;
+
+      border-bottom: 1px solid var(--border);
+
+      cursor: pointer;
+      outline: none;
+    }
+
+    .ledger-horse--no-photo {
+      grid-template-columns: minmax(0, 1fr);
+      padding-block: 24px;
+    }
+
+    .ledger-horse:focus-visible {
+      box-shadow: 0 0 0 2px var(--gold);
+    }
+
+
+    /*
+       Notice what is intentionally missing:
+
+       no outer card
+       no border radius
+       no card shadow
+       no background panel
+    */
+
+
+    .horse-photo {
+      position: relative;
+
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+
+      background: var(--panel);
+    }
+
+    .horse-photo img {
+      width: 100%;
+      height: 100%;
+
+      display: block;
+      object-fit: cover;
+
+      transition: transform 220ms ease;
+    }
+
+    .ledger-horse:hover .horse-photo img,
+    .ledger-horse:focus-visible .horse-photo img {
+      transform: scale(1.025);
+    }
+
+
+    /* ---------- Main information ---------- */
+
+    .horse-main {
+      min-width: 0;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .horse-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    .horse-eyebrow {
+      margin: 0 0 5px;
+
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: .13em;
+
+      color: var(--text-faint);
+    }
+
+    .horse-heading h2 {
+      margin: 0;
+
+      font-family: "Spectral", Georgia, serif;
+      font-size: 32px;
+      font-weight: 500;
+      line-height: 1.05;
+    }
+
+
+    /* Level becomes typography rather than another pill */
+
+    .horse-level {
+      flex: 0 0 auto;
+      font-family: "Spectral", Georgia, serif;
+      font-size: 42px;
+      font-weight: 400;
+      line-height: .9;
+
+      color: var(--text-faint);
+    }
+
+    .horse-level::before {
+      content: "LV ";
+      display: block;
+
+      margin-bottom: 3px;
+
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 8px;
+      letter-spacing: .14em;
+
+      text-align: right;
+    }
+
+
+    /* ---------- Facts ---------- */
+
+    .horse-facts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(110px, 1fr));
+
+      margin: 26px 0 20px;
+    }
+
+    .horse-facts > div {
+      padding-right: 20px;
+    }
+
+    .horse-facts > div + div {
+      padding-left: 20px;
+
+      border-left: 1px solid var(--border);
+    }
+
+    .fact-label {
+      display: block;
+
+      margin-bottom: 4px;
+
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+
+      color: var(--text-faint);
+    }
+
+    .horse-facts strong {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+
+    /* ---------- Footer ---------- */
+
+    .horse-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    .horse-footer button {
+      padding: 0;
+
+      border: 0;
+      background: transparent;
+
+      color: var(--text);
+      font: inherit;
+
+      cursor: pointer;
+    }
+
+    .horse-footer button:hover,
+    .horse-footer button:focus-visible {
+      text-decoration: underline;
+    }
+
+    .no-photo-note {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 800px) and (min-width: 641px) {
+      .stable-ledger { padding-inline: 28px; }
+      .ledger-horse { grid-template-columns: 190px minmax(0, 1fr); gap: 24px; }
+      .ledger-horse--no-photo { grid-template-columns: minmax(0, 1fr); }
+      .horse-facts { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .prototype-notice,
+      .stable-ledger { display: none; }
+      .mobile-boundary { display: grid; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .horse-photo img { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="prototype-notice" aria-label="Prototype status">
+    <span><strong>Design Lab prototype</strong> — disconnected from the Jinx's Stables application and all real horse data.</span>
+    <span class="prototype-result" id="prototypeResult" role="status">Select a row to demonstrate the existing-editor callback.</span>
+  </aside>
+
+  <main class="stable-ledger" id="ledgerRoot"></main>
+
+  <section class="mobile-boundary" aria-labelledby="mobileBoundaryTitle">
+    <div>
+      <h1 id="mobileBoundaryTitle">Design Lab is desktop-only</h1>
+      <p>The production mobile roster and Quick Add remain the control. This visual experiment intentionally disappears at 640px and below.</p>
+    </div>
+  </section>
+
+  <script>
+    "use strict";
+
+    /*
+      SAFE ADAPTER SHAPE
+
+      The renderer receives horse objects from its caller. It does not load,
+      clone, migrate, sync, save, or delete them. The future app integration
+      must pass the existing visible list and existing editor callback:
+
+        DesignLabLedger.render(root, selectVisibleHorses(), {
+          activeCount: visible.length,
+          totalCount: horses.length,
+          openHorse: function(id){ openEditor(id); },
+          photoUrlFor: function(horse){ return existingThumbnailUrl(horse); },
+          tierLabelFor: function(horse){ return TIER_LABEL[horse.tier] || horse.tier; },
+          skillCountFor: function(horse){ return totalSkillCount(horse); }
+        });
+
+      That example is documentation only. This prototype is not wired into
+      public/index.html and does not define any of those app functions.
+    */
+
+    function text(value, fallback) {
+      if (value === null || value === undefined || value === "") return fallback || "—";
+      return String(value);
+    }
+
+    function make(tag, className, content) {
+      var node = document.createElement(tag);
+      if (className) node.className = className;
+      if (content !== undefined) node.textContent = content;
+      return node;
+    }
+
+    function defaultFacts(horse, adapters) {
+      var skillCount = adapters.skillCountFor ? adapters.skillCountFor(horse) : horse.skillCount;
+      return [
+        { label: "Skills", value: text(skillCount) },
+        { label: "Breedings", value: text(horse.breedings) },
+        { label: horse.location ? "Location" : "Project", value: text(horse.location || horse.project, "Unassigned") }
+      ];
+    }
+
+    function buildPhoto(horse, adapters) {
+      var photoUrl = adapters.photoUrlFor ? adapters.photoUrlFor(horse) : horse.photoUrl;
+      if (!photoUrl) return null;
+      var photo = make("div", "horse-photo");
+      var image = document.createElement("img");
+      image.src = photoUrl;
+      image.alt = text(horse.name, "Horse") + " — existing horse photograph";
+      image.loading = "lazy";
+      photo.appendChild(image);
+      return photo;
+    }
+
+    function buildHorseRow(horse, adapters) {
+      var row = make("article", "ledger-horse");
+      row.tabIndex = 0;
+      row.dataset.horseId = text(horse.id, "");
+      row.setAttribute("aria-label", "Open " + text(horse.name, "horse"));
+      var photo = buildPhoto(horse, adapters);
+      if (photo) row.appendChild(photo);
+      else row.classList.add("ledger-horse--no-photo");
+
+      var main = make("div", "horse-main");
+      var heading = make("div", "horse-heading");
+      var titleWrap = make("div");
+      var tier = adapters.tierLabelFor ? adapters.tierLabelFor(horse) : horse.tierLabel;
+      var sex = adapters.sexLabelFor ? adapters.sexLabelFor(horse) : horse.sex;
+      titleWrap.appendChild(make("p", "horse-eyebrow", text(tier, "HORSE").toUpperCase() + " · " + text(sex, "UNKNOWN").toUpperCase()));
+      titleWrap.appendChild(make("h2", "", text(horse.name, "Unnamed horse")));
+      heading.appendChild(titleWrap);
+      heading.appendChild(make("strong", "horse-level", text(horse.level, "—")));
+      main.appendChild(heading);
+
+      var facts = make("div", "horse-facts");
+      var factRows = adapters.factsFor ? adapters.factsFor(horse) : defaultFacts(horse, adapters);
+      factRows.slice(0, 3).forEach(function(fact) {
+        var factNode = make("div");
+        factNode.appendChild(make("span", "fact-label", text(fact.label)));
+        factNode.appendChild(make("strong", "", text(fact.value)));
+        facts.appendChild(factNode);
+      });
+      main.appendChild(facts);
+
+      var footer = make("div", "horse-footer");
+      var status = adapters.statusLabelFor ? adapters.statusLabelFor(horse) : horse.status;
+      var statusNode = make("span", "", text(status, "Active"));
+      if (!photo) {
+        statusNode.appendChild(document.createTextNode(" · "));
+        statusNode.appendChild(make("span", "no-photo-note", "No photograph"));
+      }
+      footer.appendChild(statusNode);
+      var openButton = make("button", "", "Open horse →");
+      openButton.type = "button";
+      footer.appendChild(openButton);
+      main.appendChild(footer);
+      row.appendChild(main);
+
+      function open() {
+        if (typeof adapters.openHorse === "function") adapters.openHorse(horse.id);
+      }
+
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", function(event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      });
+      openButton.addEventListener("click", function(event) {
+        event.stopPropagation();
+        open();
+      });
+
+      return row;
+    }
+
+    function render(root, visibleHorses, adapters) {
+      if (!root) throw new Error("Design Lab requires a render root.");
+      if (!Array.isArray(visibleHorses)) throw new Error("Design Lab requires the existing visible horse array.");
+      adapters = adapters || {};
+      root.replaceChildren();
+
+      var header = make("header", "ledger-header");
+      var heading = make("div");
+      heading.appendChild(make("p", "ledger-kicker", text(adapters.kicker, "STABLE LEDGER")));
+      heading.appendChild(make("h1", "", text(adapters.title, "Training & Active")));
+      header.appendChild(heading);
+
+      var summary = make("div", "ledger-summary");
+      summary.appendChild(make("span", "", text(adapters.activeCount, visibleHorses.length) + " active"));
+      summary.appendChild(make("span", "", text(adapters.totalCount, visibleHorses.length) + " recorded"));
+      header.appendChild(summary);
+      root.appendChild(header);
+
+      visibleHorses.forEach(function(horse) {
+        root.appendChild(buildHorseRow(horse, adapters));
+      });
+    }
+
+    window.DesignLabLedger = Object.freeze({ render: render });
+
+    /* Frozen display-only examples. These are not application horse records. */
+    var previewRows = Object.freeze([
+      Object.freeze({
+        id: "preview-nilla",
+        name: "NillaCrumpet",
+        tierLabel: "Tier 6",
+        sex: "Female",
+        level: 18,
+        skillCount: "8 / 15",
+        breedings: 1,
+        location: "Heidel",
+        status: "Training",
+        photoUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%236f6756'/%3E%3Cstop offset='1' stop-color='%231a201a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='600' fill='url(%23g)'/%3E%3Cpath d='M219 429c42-102 104-170 192-193 36-10 82-5 117 18 49 32 69 90 54 142-9 32-32 64-67 92H276c-38-10-71-29-57-59Z' fill='%23d8d0bd' opacity='.82'/%3E%3Cpath d='M412 240c-17-58 4-109 60-137 18 34 14 72-11 112 34-10 63-3 86 21-23 38-68 48-135 4Z' fill='%23d8d0bd' opacity='.82'/%3E%3Ctext x='48' y='548' fill='%23eee9de' font-family='Georgia' font-size='28'%3EExisting horse photograph area%3C/text%3E%3C/svg%3E"
+      }),
+      Object.freeze({
+        id: "preview-butterbean",
+        name: "ButterBean",
+        tierLabel: "Tier 8",
+        sex: "Male",
+        level: 20,
+        skillCount: 11,
+        breedings: 2,
+        project: "Training",
+        status: "Active"
+      })
+    ]);
+
+    if (window.matchMedia("(min-width: 641px)").matches) {
+      DesignLabLedger.render(document.getElementById("ledgerRoot"), previewRows, {
+        activeCount: 48,
+        totalCount: 77,
+        openHorse: function(id) {
+          document.getElementById("prototypeResult").textContent =
+            "Prototype callback received " + id + ". In the app this would call the existing openEditor(id).";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
