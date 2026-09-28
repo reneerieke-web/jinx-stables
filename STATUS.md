@@ -7,20 +7,20 @@ Updated: September 28, 2026 (ET)
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
 - **Claude's working branch:** none open. Latest completed application work is included in `cloud-sync-preview` and production through `0781eca6`.
-- **Pending review:** `codex/design-lab-foundation` is documentation-only groundwork for a future desktop roster-view experiment. It contains no visible UI or application-code change and must not be merged or deployed without Renee's separate approval.
+- **Pending review:** `codex/design-lab-stable-ledger` contains the first desktop-only Design Lab interpretation on top of the approved foundation. It is isolated, not merged, and not deployed.
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `0781eca6` — reviewed mobile Quick Add viewport/action fix on top of the screenshot-sync and feedback release.
 - **Production head:** `main` was fast-forwarded to `0781eca6` with Renee's explicit approval; both custom domains were verified serving the release.
-- **Review status:** mobile Quick Add passed Renee's real-iPhone add/save/cross-device/delete test before production promotion. Design Lab has documentation only and no UI to review yet.
+- **Review status:** mobile Quick Add passed Renee's real-iPhone add/save/cross-device/delete test before production promotion. The Design Lab Stable Ledger now awaits visual/code review on its isolated branch.
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
 
-## Design Lab foundation (branch only)
+## Design Lab experiment (branch only)
 
-- Branch: `codex/design-lab-foundation`, based directly on `cloud-sync-preview` at `0781eca6`.
+- Branch: `codex/design-lab-stable-ledger`, built on the reviewed foundation commit `c9166b46`, which is based directly on `cloud-sync-preview` at `0781eca6`.
 - Purpose: establish guardrails for a future desktop-only alternate roster presentation while keeping the current roster as the control.
 - Plan: `docs/design-lab-plan.md`.
-- Current state: documentation only. No Design Lab entry, renderer, markup, styling, or app behavior exists yet; `public/index.html` is unchanged.
+- Current state: first desktop-only Stable Ledger interpretation implemented for review. Current Roster remains the default control; no merge or deployment has occurred.
 - Standalone reference: `prototypes/design-lab-stable-ledger.html` demonstrates the proposed borderless Stable Ledger visual language and a safe renderer-adapter shape. It is outside `public/`, disconnected from the app, and uses only frozen preview examples.
 - Hard boundary: Design Lab must render the existing `horses` objects after the existing capsule/filter/search/sort selection. It must not create, copy, migrate, transform, seed, sync, or persist a second horse collection.
 - Editing boundary: horse activation must use the existing `openEditor(h.id)` editor. The experimental renderer does not gain direct mutation controls.
