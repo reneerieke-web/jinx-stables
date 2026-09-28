@@ -27,8 +27,11 @@ assert.ok(labHorseStart >= 0 && labHorseEnd > labHorseStart);
 const labHorseBody = html.slice(labHorseStart, labHorseEnd);
 assert.match(labHorseBody, /article\.dataset\.horseId = horse\.id/);
 assert.match(labHorseBody, /openEditor\(horse\.id\)/, "Design Lab routes to the authoritative editor");
-assert.match(labHorseBody, /hasPhoto \? " has-photo" : " no-photo"/);
-assert.match(labHorseBody, /if\(hasPhoto\)\{/);
+assert.match(labHorseBody, /if\(hasScreenshot\(horse\.id\) \|\| screenshotPointerV\(horse\)\) loadDesignLabPhoto\(thumb, horse\)/);
+assert.match(labHorseBody, /courserProgress\(horse\)/, "v2 restores Courser progress");
+assert.match(labHorseBody, /STATUS_STYLE\[horse\.status\]/, "v2 restores the existing status colors");
+assert.match(labHorseBody, /coatGroupSwatch\(group, horse\.coatColor\)/, "v2 restores the coat cue");
+assert.doesNotMatch(labHorseBody, /innerHTML/, "Design Lab rows build DOM with textContent only");
 assert.doesNotMatch(
   labHorseBody,
   /persist\(|saveHorse|saveScreenshot|deleteScreenshot|supabase|cloudUpsert|localStorage|horses\.(?:push|splice)/i,
@@ -36,9 +39,10 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(labHorseBody, /NillaCrumpet|ButterBean/, "the Design Lab renderer contains no hard-coded example horses");
-assert.match(html, /\.design-lab-horse\.no-photo\{grid-template-columns:minmax\(0,1fr\)/);
+assert.doesNotMatch(html, /NO PHOTOGRAPH|No photograph|Open horse \u2192/, "v2 drops repeated no-photo text and the redundant open link");
+assert.match(html, /\.design-lab-thumb\{width:52px; height:39px;/, "photos are a small identifier, not a row-sizing image");
 assert.match(html, /if\(isSpecialSubtypeTier\(horse\.tier\) && horse\.subtype\)/);
-assert.match(html, /return SUBTYPE_LABEL\[horse\.subtype\] \|\| horse\.subtype/);
+assert.match(html, /SUBTYPE_LABEL\[horse\.subtype\] \|\| horse\.subtype/);
 
 const modeStart = html.indexOf('var desktopRosterViewMode = "current";');
 const modeEnd = html.indexOf("function renderAll()", modeStart);

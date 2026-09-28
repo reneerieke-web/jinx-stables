@@ -1,6 +1,6 @@
 # Design Lab: desktop roster-view experiment
 
-Status: first visual interpretation implemented on the isolated Design Lab branch for review; not merged or deployed.
+Status: Stable Ledger v2 (management ledger density) implemented on the isolated Design Lab branch for review; not merged or deployed.
 
 Base: `cloud-sync-preview` at `0781eca6ea8a797c36e378b77a817d000f121630`.
 
@@ -164,3 +164,17 @@ The renderer reads an already-cached thumbnail through the existing read-only sc
 - No second horse collection or Design Lab persistence.
 - No mobile Design Lab UI.
 - No deployment or merge.
+
+## Stable Ledger v2 (Claude, Sept 28)
+
+Renee accepted v1's architecture and visual tone but asked for a working ledger rather than a catalog. v2 changes presentation only; the data boundary above is unchanged.
+
+- Rows are about 78 px tall (v1 was 190 to 240 px): roughly 9 to 11 horses per 900 px of viewport, about 7 to 8 on the first screen below the controls.
+- One column header row per capsule instead of per-row labels. Active and Special Projects: Horse, Skills, Courser, Breed, Status, Lv. Sold, Exchanged, Imperial: Horse, Details, Status, Lv (details use existing sale, exchange or delivery fields, falling back to skills, Courser and breedings when none were recorded).
+- Horse name stays the strongest element (serif, 23 px). Eyebrow line: tier (or Dream type and tier, in gold), sex, and the existing coat swatch and color group.
+- Restored: Courser progress (gold with a "Courser" label when complete), skills count, breedings, the existing STATUS_STYLE colors as a dot and text, project name, "Skills need review" for unreviewed Dream/Mythical horses, and rider/location when "Show rider / location on cards" is on.
+- Photos are a 52 x 39 px thumbnail from the existing local cache only. Rows without a cached photo keep the empty thumbnail column so names stay aligned; no "No photograph" text. Cross-device missing photos are intentionally not solved here.
+- Removed the "Open horse" link; the whole row (click, Enter or Space) opens the existing openEditor(horse.id). No nested buttons.
+- 641 to 900 px uses narrower columns; at 640 px and below Current Roster is forced as before.
+
+Verification (Chromium, signed-out copy of a real 77-horse backup): capsule, search and sort parity; byte-identical localStorage and IndexedDB after repeated view toggles; editor round-trip in both directions with one stored copy; no horizontal overflow from 660 to 1440 px; 600 px fallback removes every Design Lab node.

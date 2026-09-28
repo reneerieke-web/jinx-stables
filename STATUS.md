@@ -8,6 +8,7 @@ Updated: September 28, 2026 (ET)
 - **Backup builder:** Codex
 - **Claude's working branch:** none open. Latest completed application work is included in `cloud-sync-preview` and production through `0781eca6`.
 - **Pending review:** `codex/design-lab-stable-ledger` contains the first desktop-only Design Lab interpretation on top of the approved foundation. It is isolated, not merged, and not deployed.
+- **Design Lab v2 (Claude, Sept 28):** Stable Ledger v2 on `claude/design-lab-v2` (built on `946cca2`): management-ledger density, restored Courser/status/coat facts, small thumbnails, no redundant link. Presentation only; same data boundary. Not merged or deployed; needs Codex review, then Renee's signed-in preview check. See `docs/design-lab-plan.md`.
 - **Active branch:** `cloud-sync-preview`
 - **Last code commit:** `0781eca6` — reviewed mobile Quick Add viewport/action fix on top of the screenshot-sync and feedback release.
 - **Production head:** `main` was fast-forwarded to `0781eca6` with Renee's explicit approval; both custom domains were verified serving the release.

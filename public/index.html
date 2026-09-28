@@ -204,50 +204,54 @@
   .design-lab-switch button{border:0; border-radius:6px; padding:7px 11px; background:transparent; color:var(--text-soft);
     font-size:12px; font-weight:600;}
   .design-lab-switch button[aria-pressed="true"]{background:var(--panel-raised); color:var(--gold);}
-  .design-lab-ledger{width:100%;}
-  .design-lab-header{display:flex; justify-content:space-between; align-items:flex-end; gap:28px; padding:24px 0 22px;
+  .design-lab-ledger{width:100%; --dl-cols:52px minmax(0,2.4fr) minmax(56px,.55fr) minmax(64px,.6fr) minmax(64px,.6fr) minmax(0,1.5fr) 58px;}
+  .design-lab-header{display:flex; justify-content:space-between; align-items:baseline; gap:24px; padding:6px 0 12px;
     border-bottom:1px solid var(--border);}
-  .design-lab-kicker{margin:0 0 7px; font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px;
-    letter-spacing:.16em; color:var(--text-faint);}
-  .design-lab-header h2{font-size:clamp(32px,4vw,50px); font-weight:500; line-height:1;}
-  .design-lab-summary{display:flex; gap:20px; color:var(--text-faint); font-size:12px; white-space:nowrap;}
-  .design-lab-horse{display:grid; grid-template-columns:230px minmax(0,1fr); gap:34px; padding:30px 0;
-    border-bottom:1px solid var(--border); cursor:pointer; outline:none;}
-  .design-lab-horse.no-photo{grid-template-columns:minmax(0,1fr); padding-block:24px;}
+  .design-lab-title{display:flex; align-items:baseline; gap:14px; min-width:0;}
+  .design-lab-kicker{font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px; letter-spacing:.16em;
+    color:var(--text-faint); text-transform:uppercase; white-space:nowrap;}
+  .design-lab-header h2{font-size:24px; font-weight:500; line-height:1.1;}
+  .design-lab-summary{display:flex; gap:18px; color:var(--text-faint); font-size:12px; white-space:nowrap;}
+  .design-lab-columns,.design-lab-horse{display:grid; grid-template-columns:var(--dl-cols); column-gap:18px; align-items:center;}
+  .design-lab-columns{padding:9px 0 7px; border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint);}
+  .design-lab-columns .num,.design-lab-horse .num{text-align:right; font-variant-numeric:tabular-nums;}
+  .design-lab-horse{min-height:78px; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; outline:none;
+    box-shadow:inset 3px 0 0 transparent; transition:background-color 140ms ease;}
+  .design-lab-horse:hover,.design-lab-horse:focus-visible{background:color-mix(in srgb, var(--panel) 55%, transparent);}
+  .design-lab-horse:focus-visible{box-shadow:inset 3px 0 0 var(--gold);}
   .design-lab-horse:hover .design-lab-name,.design-lab-horse:focus-visible .design-lab-name{color:var(--gold);}
-  .design-lab-horse:focus-visible{box-shadow:0 0 0 2px var(--gold); box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 70%,transparent);}
-  .design-lab-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--panel);}
-  .design-lab-photo img{display:block; width:100%; height:100%; object-fit:cover; transition:transform 220ms ease;}
-  .design-lab-horse:hover .design-lab-photo img,.design-lab-horse:focus-visible .design-lab-photo img{transform:scale(1.025);}
-  .design-lab-photo-loading{position:absolute; inset:0; display:grid; place-content:center; color:var(--text-faint);
-    font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.1em; text-transform:uppercase;}
-  .design-lab-main{min-width:0; display:flex; flex-direction:column; justify-content:space-between;}
-  .design-lab-heading{display:flex; justify-content:space-between; align-items:flex-start; gap:24px;}
-  .design-lab-eyebrow{margin:0 0 5px; font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px;
-    letter-spacing:.13em; color:var(--text-faint); text-transform:uppercase;}
-  .design-lab-horse.special .design-lab-eyebrow{color:var(--gold);}
-  .design-lab-name{margin:0; overflow-wrap:anywhere; font-size:32px; font-weight:500; line-height:1.05; transition:color 160ms ease;}
-  .design-lab-level{flex:0 0 auto; font-family:"Spectral",Georgia,serif; font-size:42px; font-weight:400; line-height:.9;
-    color:var(--text-faint); text-align:right;}
-  .design-lab-level::before{content:"LV"; display:block; margin-bottom:3px; font-family:"IBM Plex Mono","Courier New",monospace;
-    font-size:8px; letter-spacing:.14em;}
-  .design-lab-facts{display:grid; grid-template-columns:repeat(3,minmax(110px,1fr)); margin:26px 0 20px;}
-  .design-lab-fact{padding-right:20px; min-width:0;}
-  .design-lab-fact + .design-lab-fact{padding-left:20px; border-left:1px solid var(--border);}
-  .design-lab-fact-label{display:block; margin-bottom:4px; font-size:9px; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--text-faint);}
-  .design-lab-fact strong{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:500;}
-  .design-lab-footer{display:flex; justify-content:space-between; align-items:center; gap:20px; color:var(--text-faint); font-size:12px;}
-  .design-lab-footer button{padding:0; border:0; background:transparent; color:var(--text); font:inherit;}
-  .design-lab-footer button:hover,.design-lab-footer button:focus-visible{text-decoration:underline;}
-  .design-lab-no-photo-note{font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.08em;
-    text-transform:uppercase; color:var(--text-faint);}
-  @media (max-width:800px) and (min-width:641px){
-    .design-lab-horse{grid-template-columns:190px minmax(0,1fr); gap:24px;}
-    .design-lab-horse.no-photo{grid-template-columns:minmax(0,1fr);}
-    .design-lab-facts{grid-template-columns:repeat(3,minmax(90px,1fr));}
+  .design-lab-thumb{width:52px; height:39px; overflow:hidden; border-radius:2px;}
+  .design-lab-thumb img{display:block; width:100%; height:100%; object-fit:cover;}
+  .design-lab-ident{min-width:0;}
+  .design-lab-eyebrow{display:flex; align-items:center; gap:7px; margin:0 0 3px; font-family:"IBM Plex Mono","Courier New",monospace;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-horse.special .design-lab-eyebrow .dl-kind{color:var(--gold);}
+  .design-lab-swatch{flex:0 0 auto; width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 1px color-mix(in srgb, var(--text) 25%, transparent);}
+  .design-lab-name{margin:0; font-size:23px; font-weight:500; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    transition:color 140ms ease;}
+  .design-lab-val{font-size:15px; color:var(--text);}
+  .design-lab-val small{display:block; margin-top:1px; font-size:10px; letter-spacing:.06em; color:var(--text-faint); text-transform:uppercase;}
+  .design-lab-val.muted{color:var(--text-faint);}
+  .design-lab-val.courser-full{color:var(--gold);}
+  .design-lab-status{min-width:0; font-size:13px; line-height:1.35;}
+  .design-lab-status .dl-state{display:flex; align-items:center; gap:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-status .dl-dot{flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:currentColor;}
+  .design-lab-status .dl-note{display:block; color:var(--text-faint); font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-level{font-family:"Spectral",Georgia,serif; font-size:30px; font-weight:400; line-height:1; color:var(--text-soft); text-align:right;
+    font-variant-numeric:tabular-nums;}
+  .design-lab-level.max{color:var(--text);}
+  .design-lab-wide{grid-column:3 / 6; font-size:13.5px; color:var(--text-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-wide b{color:var(--text); font-weight:500;}
+  @media (max-width:900px) and (min-width:641px){
+    .design-lab-ledger{--dl-cols:44px minmax(0,2fr) minmax(46px,.5fr) minmax(52px,.55fr) minmax(52px,.55fr) minmax(0,1.2fr) 44px;}
+    .design-lab-horse,.design-lab-columns{column-gap:12px;}
+    .design-lab-thumb{width:44px; height:33px;}
+    .design-lab-name{font-size:20px;}
+    .design-lab-level{font-size:24px;}
+    .design-lab-kicker{display:none;}
   }
-  @media (prefers-reduced-motion:reduce){.design-lab-photo img,.design-lab-name{transition:none;}}
+  @media (prefers-reduced-motion:reduce){.design-lab-horse,.design-lab-name{transition:none;}}
 
   #backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(1px); z-index:20;}
   #editor{
@@ -2445,95 +2449,132 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     return found ? found.label : "Stable Ledger";
   }
 
-  function designLabDesignation(horse){
+  // "T8" / "Doom · Dream (T9)" etc. Uses the same labels as the current cards.
+  function designLabKind(horse){
+    var tier = TIER_LABEL[horse.tier] || horse.tier || "Horse";
     if(isSpecialSubtypeTier(horse.tier) && horse.subtype){
-      return SUBTYPE_LABEL[horse.subtype] || horse.subtype;
+      return (SUBTYPE_LABEL[horse.subtype] || horse.subtype) + " · " + tier;
     }
-    return (TIER_LABEL[horse.tier] || horse.tier || "Horse") + " · " + (horse.sex || "Unknown");
+    return tier;
   }
 
-  function designLabFact(label, value){
-    var fact = designLabElement("div", "design-lab-fact");
-    fact.appendChild(designLabElement("span", "design-lab-fact-label", label));
-    fact.appendChild(designLabElement("strong", "", value === null || value === undefined || value === "" ? "—" : value));
-    return fact;
-  }
-
-  function loadDesignLabPhoto(photo, horse){
+  function loadDesignLabPhoto(thumb, horse){
     // Read the existing local screenshot cache only. This does not download,
-    // upload, save, alter a pointer, or start a sync job.
+    // upload, save, alter a pointer, or start a sync job. If nothing is cached
+    // on this device the cell simply stays empty (no placeholder text).
     getScreenshot(horse.id).then(function(rec){
-      if(!photo.isConnected || photo.dataset.horseId !== String(horse.id)) return;
-      if(!rec || !(rec.thumb || rec.full)){
-        photo.hidden = true;
-        var row = photo.closest(".design-lab-horse");
-        if(row) row.classList.add("no-photo");
-        return;
-      }
+      if(!thumb.isConnected || thumb.dataset.horseId !== String(horse.id)) return;
+      if(!rec || !(rec.thumb || rec.full)) return;
       var image = document.createElement("img");
-      image.alt = (horse.name || "Horse") + " screenshot";
+      image.alt = "";
       image.loading = "lazy";
+      image.decoding = "async";
       image.src = rec.thumb || rec.full;
-      photo.replaceChildren(image);
-    }).catch(function(){
-      if(photo.isConnected){
-        photo.hidden = true;
-        var row = photo.closest(".design-lab-horse");
-        if(row) row.classList.add("no-photo");
-      }
-    });
+      thumb.replaceChildren(image);
+    }).catch(function(){ /* leave the cell empty */ });
+  }
+
+  function designLabValue(textValue, small, extraClass){
+    var cell = designLabElement("div", "design-lab-val num" + (extraClass ? " " + extraClass : ""));
+    cell.appendChild(document.createTextNode(textValue));
+    if(small){ cell.appendChild(designLabElement("small", "", small)); }
+    return cell;
   }
 
   function renderDesignLabHorse(horse){
-    var hasPhoto = hasScreenshot(horse.id) || !!screenshotPointerV(horse);
-    var article = designLabElement("article", "design-lab-horse" + (hasPhoto ? " has-photo" : " no-photo"));
+    var special = isSpecialSubtypeTier(horse.tier);
+    var article = designLabElement("article", "design-lab-horse" + (special ? " special" : ""));
     article.dataset.horseId = horse.id;
     article.tabIndex = 0;
     article.setAttribute("role", "button");
     article.setAttribute("aria-label", "Open " + (horse.name || "horse"));
-    if(isSpecialSubtypeTier(horse.tier)) article.classList.add("special");
 
     // Presentation only. Never clone, save, or persist from Design Lab.
-    if(hasPhoto){
-      var photo = designLabElement("div", "design-lab-photo");
-      photo.dataset.horseId = horse.id;
-      photo.appendChild(designLabElement("span", "design-lab-photo-loading", "Loading photograph"));
-      article.appendChild(photo);
-      loadDesignLabPhoto(photo, horse);
+    var thumb = designLabElement("div", "design-lab-thumb");
+    thumb.dataset.horseId = horse.id;
+    thumb.setAttribute("aria-hidden", "true");
+    article.appendChild(thumb);
+    if(hasScreenshot(horse.id) || screenshotPointerV(horse)) loadDesignLabPhoto(thumb, horse);
+
+    var ident = designLabElement("div", "design-lab-ident");
+    var eyebrow = designLabElement("p", "design-lab-eyebrow");
+    eyebrow.appendChild(designLabElement("span", "dl-kind", designLabKind(horse)));
+    eyebrow.appendChild(designLabElement("span", "", "·"));
+    eyebrow.appendChild(designLabElement("span", "", horse.sex || "Unknown"));
+    var group = coatGroupFor(horse);
+    if(group && group !== "Undetermined"){
+      eyebrow.appendChild(designLabElement("span", "", "·"));
+      var swatch = designLabElement("span", "design-lab-swatch");
+      swatch.style.background = coatGroupSwatch(group, horse.coatColor);
+      eyebrow.appendChild(swatch);
+      eyebrow.appendChild(designLabElement("span", "", coatGroupLabel(group).replace(/ group$/i, "")));
     }
+    ident.appendChild(eyebrow);
+    ident.appendChild(designLabElement("h3", "design-lab-name", horse.name || "Unnamed horse"));
+    article.appendChild(ident);
 
-    var main = designLabElement("div", "design-lab-main");
-    var heading = designLabElement("div", "design-lab-heading");
-    var title = designLabElement("div");
-    title.appendChild(designLabElement("p", "design-lab-eyebrow", designLabDesignation(horse)));
-    title.appendChild(designLabElement("h3", "design-lab-name", horse.name || "Unnamed horse"));
-    heading.appendChild(title);
-    heading.appendChild(designLabElement("strong", "design-lab-level", horse.level || 0));
-    main.appendChild(heading);
-
-    var facts = designLabElement("div", "design-lab-facts");
-    facts.appendChild(designLabFact("Skills", totalSkillCount(horse)));
-    facts.appendChild(designLabFact("Breedings", horse.breedings));
-    if(horse.location){
-      facts.appendChild(designLabFact("Location", horse.location));
+    var capsule = state.capsule;
+    if(capsule === "active" || capsule === "project"){
+      article.appendChild(designLabValue(String(totalSkillCount(horse))));
+      var progress = courserProgress(horse);
+      if(progress){
+        var full = progress.have === progress.total;
+        article.appendChild(designLabValue(progress.have + "/" + progress.total, full ? "Courser" : "", full ? "courser-full" : ""));
+      } else {
+        article.appendChild(designLabValue("—", "", "muted"));
+      }
+      article.appendChild(designLabValue(String(horse.breedings)));
     } else {
-      var projectName = horse.project && horse.project.type && horse.project.type !== "None" ? horse.project.type : "Unassigned";
-      facts.appendChild(designLabFact("Project", projectName));
+      var wide = designLabElement("div", "design-lab-wide");
+      var parts = [];
+      if(capsule === "sold" && horse.sale){
+        parts = [["Sold for ", Number(horse.sale.price||0).toLocaleString() + " silver"], [" · ", horse.sale.date || ""]];
+      } else if(capsule === "exchanged" && horse.consumedIn){
+        parts = [["Into ", horse.consumedIn.resultName || ""], [" · ", horse.consumedIn.date || ""]];
+      } else if(capsule === "imperial" && horse.imperial){
+        parts = [["", Number(horse.imperial.silver||0).toLocaleString() + " silver"],
+                 [" · Seals ", String(horse.imperial.seals == null ? "" : horse.imperial.seals)],
+                 [" · Flowers ", String(horse.imperial.flowers == null ? "" : horse.imperial.flowers)],
+                 [" · ", horse.imperial.date || ""]];
+      }
+      parts = parts.filter(function(p){ return !!p[1]; });
+      if(!parts.length){
+        // No sale/exchange/delivery details recorded: fall back to the same
+        // working facts the active ledger shows, in a quieter tone.
+        var fallbackProgress = courserProgress(horse);
+        parts = [["Skills ", String(totalSkillCount(horse))]];
+        if(fallbackProgress) parts.push([" · Courser ", fallbackProgress.have + "/" + fallbackProgress.total]);
+        parts.push([" · Breedings ", String(horse.breedings)]);
+      }
+      parts.forEach(function(p){
+        wide.appendChild(document.createTextNode(p[0]));
+        wide.appendChild(designLabElement("b", "", p[1]));
+      });
+      article.appendChild(wide);
     }
-    main.appendChild(facts);
 
-    var footer = designLabElement("div", "design-lab-footer");
-    var footerNote = designLabElement("span", "", statusLabel(horse.status || "Undetermined"));
-    if(!hasPhoto){
-      footerNote.appendChild(document.createTextNode(" · "));
-      footerNote.appendChild(designLabElement("span", "design-lab-no-photo-note", "No photograph"));
+    var statusCell = designLabElement("div", "design-lab-status");
+    var stateLine = designLabElement("span", "dl-state");
+    var stStyle = STATUS_STYLE[horse.status] || STATUS_STYLE["Undetermined"];
+    var accent = CAPSULE_ACCENT[capsule];
+    stateLine.style.color = accent ? accent[1] : stStyle[1];
+    stateLine.appendChild(designLabElement("span", "dl-dot"));
+    stateLine.appendChild(designLabElement("span", "", statusLabel(horse.status || "Undetermined")));
+    statusCell.appendChild(stateLine);
+    var notes = [];
+    if(horse.project && horse.project.type && horse.project.type !== "None"){
+      notes.push(horse.project.type + (horse.project.label ? ": " + horse.project.label : ""));
     }
-    footer.appendChild(footerNote);
-    var openButton = designLabElement("button", "", "Open horse →");
-    openButton.type = "button";
-    footer.appendChild(openButton);
-    main.appendChild(footer);
-    article.appendChild(main);
+    if(special && !horse.skillDataReviewed) notes.push("Skills need review");
+    if(showCardExtras){
+      if(horse.rider) notes.push(horse.rider);
+      if(horse.location) notes.push(horse.location);
+    }
+    if(notes.length) statusCell.appendChild(designLabElement("span", "dl-note", notes.join(" · ")));
+    article.appendChild(statusCell);
+
+    var level = parseInt(horse.level, 10) || 0;
+    article.appendChild(designLabElement("div", "design-lab-level" + (level >= 30 ? " max" : ""), level));
 
     function open(){ openEditor(horse.id); }
     article.addEventListener("click", open);
@@ -2543,28 +2584,36 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
         open();
       }
     });
-    openButton.addEventListener("click", function(event){
-      event.stopPropagation();
-      open();
-    });
     return article;
   }
 
   function renderDesignLab(visibleHorses){
     designLabGrid.replaceChildren();
     var header = designLabElement("header", "design-lab-header");
-    var title = designLabElement("div");
-    title.appendChild(designLabElement("p", "design-lab-kicker", "DESIGN LAB · STABLE LEDGER"));
+    var title = designLabElement("div", "design-lab-title");
     title.appendChild(designLabElement("h2", "", designLabCapsuleLabel()));
+    title.appendChild(designLabElement("span", "design-lab-kicker", "Design Lab · Stable Ledger"));
     header.appendChild(title);
     var summary = designLabElement("div", "design-lab-summary");
     summary.appendChild(designLabElement("span", "", visibleHorses.length + " shown"));
     summary.appendChild(designLabElement("span", "", horses.length + " recorded"));
     header.appendChild(summary);
     designLabGrid.appendChild(header);
+
+    var columns = designLabElement("div", "design-lab-columns");
+    columns.setAttribute("aria-hidden", "true");
+    var working = state.capsule === "active" || state.capsule === "project";
+    var labels = working ? ["", "Horse", "Skills", "Courser", "Breed", "Status", "Lv"]
+                         : ["", "Horse", "Details", null, null, "Status", "Lv"];
+    labels.forEach(function(label, i){
+      if(label === null) return;
+      var cell = designLabElement("span", (i >= 2 && i <= 4 && working) || i === 6 ? "num" : "", label);
+      if(!working && i === 2) cell.style.gridColumn = "3 / 6";
+      columns.appendChild(cell);
+    });
+    designLabGrid.appendChild(columns);
     visibleHorses.forEach(function(horse){ designLabGrid.appendChild(renderDesignLabHorse(horse)); });
   }
-
   function renderGrid(){
     if(typeof refreshSearchClear === "function") refreshSearchClear();
     var visibleHorses = selectVisibleHorses();
