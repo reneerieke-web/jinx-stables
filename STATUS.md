@@ -1,19 +1,31 @@
 # Jinx’s Stables — Project Status
 
-Updated: September 27, 2026 (ET)
+Updated: September 28, 2026 (ET)
 
 ## Baton
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
 - **Backup builder:** Codex
-- **Claude's working branch:** none open. Latest: `claude/shot-cache-bust` (`061b812`), approved by Codex and fast-forwarded into `cloud-sync-preview`.
-- **Pending review:** `claude/focused-bardeen-ikb2lu` has a UI-only fix to the feedback modal's type selector, built on `cloud-sync-preview` `0e268ac`. The general `.field input` rule (width 100%, padding) was stretching each radio into its own column; the choices now use a `.fb-choice` row class so each radio sits 10px left of its label in four aligned 40px rows. Labels, values, validation, insert payload, and SQL are unchanged. Tested at 1366, 390, and 320 px: no wrapping, no horizontal overflow, clicking the label text selects the choice. Waiting for Codex's blocker-only review before merge.
+- **Claude's working branch:** none open. Latest completed application work is included in `cloud-sync-preview` and production through `0781eca6`.
+- **Pending review:** `codex/design-lab-foundation` is documentation-only groundwork for a future desktop roster-view experiment. It contains no visible UI or application-code change and must not be merged or deployed without Renee's separate approval.
 - **Active branch:** `cloud-sync-preview`
-- **Last code commit:** `061b812` — screenshot cache-busting fix (on `cloud-sync-preview`; production `main` is still `61a2b41`)
-- **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
-- **Review status:** Claude approved `61a2b41`; its tests pass, desktop and phone are clean, blocked snapshots remain dirty, and account connection no longer traps the user
+- **Last code commit:** `0781eca6` — reviewed mobile Quick Add viewport/action fix on top of the screenshot-sync and feedback release.
+- **Production head:** `main` was fast-forwarded to `0781eca6` with Renee's explicit approval; both custom domains were verified serving the release.
+- **Review status:** mobile Quick Add passed Renee's real-iPhone add/save/cross-device/delete test before production promotion. Design Lab has documentation only and no UI to review yet.
 
 Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
+
+## Design Lab foundation (branch only)
+
+- Branch: `codex/design-lab-foundation`, based directly on `cloud-sync-preview` at `0781eca6`.
+- Purpose: establish guardrails for a future desktop-only alternate roster presentation while keeping the current roster as the control.
+- Plan: `docs/design-lab-plan.md`.
+- Current state: documentation only. No Design Lab entry, renderer, markup, styling, or app behavior exists yet; `public/index.html` is unchanged.
+- Hard boundary: Design Lab must render the existing `horses` objects after the existing capsule/filter/search/sort selection. It must not create, copy, migrate, transform, seed, sync, or persist a second horse collection.
+- Editing boundary: horse activation must use the existing `openEditor(h.id)` editor. The experimental renderer does not gain direct mutation controls.
+- Mobile boundary: no entry or alternate renderer at the existing `max-width: 640px` phone breakpoint; the current mobile experience and Quick Add remain untouched.
+- No changes to `main`, production, Supabase, SQL, Storage, authentication, screenshot sync, feedback, Recently Deleted, import/export, IDs, schemas, or persistence/cloud-sync behavior.
+- This branch must not be merged or deployed until Renee separately approves an actual visual direction and the resulting UI receives normal review and regression testing.
 
 ## Team workflow
 
