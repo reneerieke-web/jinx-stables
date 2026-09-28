@@ -1,31 +1,112 @@
 # Jinx’s Stables — Project Status
 
-Updated: September 27, 2026 (ET)
+Updated: September 28, 2026 (ET)
+
+Three kinds of project memory live in this repository:
+
+- `STATUS.md` (this file): where we are right now.
+- Plans and records in `docs/`: what we are building and how it was tested (`docs/screenshot-sync-plan.md`, `docs/design-lab-plan.md` on the Design Lab branches, `docs/test-results.md`, `docs/known-limitations.md`, `docs/supabase-changes.md`, `docs/beta-tester-guide.md`).
+- `docs/decisions.md`: why the architecture is the way it is. Read it before "improving" something that looks odd.
+
+## Current state (read this first)
+
+Verified on GitHub on September 28, 2026.
+
+**Production and preview are the same build.** `main` (www.jinxsstables.com and jinxsstables.com) and `cloud-sync-preview` (the preview Worker) both point to `0781eca`. The move of `main` to `0781eca` was made with Renee's explicit approval after she tested the mobile Quick Add fix on a real iPhone (add, save, cross-device, delete), as recorded in the STATUS notes on the Design Lab branches.
+
+**Live in production at `0781eca`:**
+
+- Discord sign-in (Google sign-in is disabled) and a cloud-synced stable per account, with Recently deleted and a 30-day restore window.
+- Database data limits: 2,000 horses per stable, 32 KB per horse record, 100-character stable names, with friendly in-app recovery.
+- Security fixes: escaped and whitelisted horse tiers (tier XSS) and the SheetJS 0.20.3 spreadsheet reader with import limits.
+- Screenshot sync across devices (private `horse-screenshots` bucket) and the cache-busting fix `061b812`.
+- Text feedback ("Send feedback", insert-only).
+- The mobile Quick Add fix `0781eca`.
+
+**On branches, not deployed:**
+
+| Work | Branch and head | State |
+| --- | --- | --- |
+| Optional feedback screenshots | `claude/focused-bardeen-ikb2lu` @ `71326c5` | SQL is review-only and **not applied**. Three open items before re-review: (1) rebase onto `0781eca`; (2) move the SECURITY DEFINER helpers into a dedicated `feedback_private` schema instead of a generic `private` schema; (3) make `tests/storage/run_feedback_parallel_test.sh` require exactly 5 committed reports and exit non-zero otherwise. |
+| Design Lab v2 (desktop presentation experiment) | `claude/design-lab-v2` @ `ce4b651` | Built on Codex's `codex/design-lab-stable-ledger` @ `946cca2` (foundation `codex/design-lab-foundation` @ `c9166b4`). Presentation only. Awaits Codex review, then Renee's signed-in check on a preview. |
+| Obsolete mobile fix | `codex/mobile-quick-add-fix` @ `0b4e6d8` | **Never merge.** Built on an old ancestor and replaced by `0781eca`. Safe to delete during housekeeping. |
+| Welcome artwork track | `welcome-artwork-preview` @ `dc29f0b` | Frozen. Do not modify unless Renee asks. |
+
+**Beta model.** Renee posted www.jinxsstables.com in three BDO guild Discords (community beta, started September 27). Anonymous visits cannot be measured. Signed-in testers can be counted from Supabase: as of September 28 the only signed-in account is Renee's (read-only check recorded on `claude/design-lab-v2`). Treat every tester's horses as real data from the moment they exist.
+
+**Known limitations:** `docs/known-limitations.md`. **Supabase change log:** `docs/supabase-changes.md`. **Test history:** `docs/test-results.md`.
 
 ## Baton
 
-- **Current builder:** Claude (baton handed over by Renee on September 27 because Codex is out of usage)
-- **Backup builder:** Codex
-- **Claude's working branch:** none open. Latest: `claude/shot-cache-bust` (`061b812`), approved by Codex and fast-forwarded into `cloud-sync-preview`.
-- **Pending review:** `claude/focused-bardeen-ikb2lu` has a UI-only fix to the feedback modal's type selector, built on `cloud-sync-preview` `0e268ac`. The general `.field input` rule (width 100%, padding) was stretching each radio into its own column; the choices now use a `.fb-choice` row class so each radio sits 10px left of its label in four aligned 40px rows. Labels, values, validation, insert payload, and SQL are unchanged. Tested at 1366, 390, and 320 px: no wrapping, no horizontal overflow, clicking the label text selects the choice. Waiting for Codex's blocker-only review before merge.
-- **Active branch:** `cloud-sync-preview`
-- **Last code commit:** `061b812` — screenshot cache-busting fix (on `cloud-sync-preview`; production `main` is still `61a2b41`)
-- **Production head:** `main` is fast-forwarded to `61a2b41`, so app-side limit recovery is deployed before database enforcement
-- **Review status:** Claude approved `61a2b41`; its tests pass, desktop and phone are clean, blocked snapshots remain dirty, and account connection no longer traps the user
-
-Only the baton holder writes to `cloud-sync-preview`. When handing off, update this file in the same commit with the new baton holder, last commit, completed work, next task, and anything that must not be touched.
+- **Current builder:** Claude (baton handed over by Renee on September 27 because Codex was out of usage). Codex has since built the Design Lab foundation and v1 on its own `codex/` branches with Renee's direction.
+- **Backup builder:** Codex.
+- **Active branch:** `cloud-sync-preview` (`0781eca`).
+- Only the baton holder writes to `cloud-sync-preview`. Work for review goes on its own `claude/<task>` or `codex/<task>` branch. When handing off, update this file in the same commit with the baton holder, last commit, completed work, next task, and anything that must not be touched.
 
 ## Team workflow
-
-- Read-only (SELECT) lookups in Supabase are fine for verification; anything that changes Supabase needs Renee's yes.
 
 - Renee decides scope, approves consequential changes, and performs acceptance testing.
 - The baton holder builds and commits.
 - Whoever did not write a change reviews it before Renee tests it.
-- Claude may inspect Supabase, but only the baton holder may change Supabase, and only with Renee’s explicit approval.
-- This repository is public. Never put secrets, credentials, private account information, or personal information in this file or anywhere else in the repository.
+- Read-only (SELECT) lookups in Supabase are fine for verification. Anything that changes Supabase needs Renee's explicit yes, and only the baton holder makes it. Record every applied change in `docs/supabase-changes.md`.
+- This repository is public. Never put secrets, credentials, private account information, emails, or account IDs in this file or anywhere else in the repository.
 
-## Done
+## Next
+
+1. Review and merge this docs-only housekeeping branch (`claude/docs-housekeeping`).
+2. Feedback screenshots: the three open items above, then Codex review. Renee decides separately whether and when to apply the SQL.
+3. Design Lab v2: Codex review, then Renee's signed-in preview check (capsule counts match, editor round-trip in both views, narrow window falls back to cards, one horse with a picture and one without).
+4. Delete `codex/mobile-quick-add-fix` when comfortable.
+5. During the beta, only release blockers change production code. Usability items and ideas go to the backlog.
+6. Still open from the security checklist: an end-to-end cross-account test through the app with a separate Discord test account.
+
+After that:
+
+- Add the privacy note to the site footer.
+- Prevent iOS from offering "AutoFill Contact" on the horse Name field and the delete-confirmation name box.
+- Ship the horse advisor, Keep this coat, and the screenshot color picker from Claude's `horse-advisor-and-coat-picker.diff` (suggestions only; see `docs/decisions.md`).
+- Postponed on purpose: Google/Facebook login, advanced breeding tools, coat research, AI coat recognition, new themes, shared stables.
+
+## Backlog
+
+- A periodic pull while the app is visible, so an open device picks up other devices' changes (protected sync code; post-beta decision).
+- Phone cards: show the camera badge.
+- Phone editor: make the sticky Delete/Save bar opaque above scrolling content in every theme.
+- Page the horse list the way screenshot cleanup is paged, before any stable approaches 1,000 horses (protected sync code; needs its own reviewed change).
+- Let `pullCloudWhenSafe` pull unrelated remote updates while one oversized horse stays locally dirty.
+- Automated test runs on GitHub (CI). Tests are run by hand today.
+- Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
+- Optional White color group.
+- Optional donation button, after confirming the implementation follows Pearl Abyss's fan-content requirements.
+- Photo identification (post-release): requirements in `docs/screenshot-sync-plan.md`; rules in `docs/decisions.md`.
+
+## Decisions still open for Renee
+
+- Whether to hide the Red/White/Black boxes in the editor.
+- What "Ultimate horse" means for the advisor.
+- Whether let-go suggestions should lean toward silver from the Horse Market or Flowers of Oblivion from Imperial delivery.
+- Whether guests should be able to keep horses without signing in (this is why the pre-cloud migration test was not run).
+
+## Do not touch
+
+- Do not reset `cloud-sync-preview` or `main` to an older commit or discard later commits.
+- Do not merge `codex/mobile-quick-add-fix` (`0b4e6d8`).
+- Do not modify sync, authentication, or stored-data behavior during visual or layout work.
+- Do not change Supabase (SQL, Storage, Auth settings) without Renee's explicit approval and the baton.
+- Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
+- Do not alter the connected custom domains or Supabase Auth URL configuration without Renee's explicit approval for each step.
+- Do not change the fixed screenshot file names (`thumb.jpg` / `full.jpg`); see `docs/decisions.md`.
+- Do not let a presentation experiment (Design Lab) own, copy, or persist horse data.
+- Do not run live attack tests against Renee's real stable.
+- Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
+
+---
+
+## History
+
+The entries below are the running log kept since September 26. Each statement describes the state **at the time it was written**; for the current state, use the top of this file. Superseded notes removed on September 28: the "Production track: `main` at `61a2b41`, no screenshot sync" line, the matching baton lines, the "Screenshots stay on the device" tester note, and the "do not use Restore App Backup (JSON) on production" caution. That caution applied only while production (`61a2b41`) lacked screenshot sync; production now runs the same code as preview.
+
+### Completed work (log)
 
 - Launch Step 0 completed: authenticated GitHub repository access was restored and verified; the unpublished local commits `7540b39` and `3c0ae2b` were intentionally discarded, returning the local `cloud-sync-preview` branch to the shared `e564461` head.
 - Cloud authentication and synchronization safety work is in place on `cloud-sync-preview`.
@@ -71,80 +152,13 @@ Only the baton holder writes to `cloud-sync-preview`. When handing off, update t
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 - **Mobile Quick Add release-blocker fix prepared for review (Sept 27):** an isolated patch was rebuilt directly on `cloud-sync-preview` at `1e82939` after the first review branch was found to be based on old production. It adds phone-safe 16 px controls, desktop-only Name autofocus, button `touch-action: manipulation`, a two-column phone skill layout, a wrapping/reachable action footer, and dynamic modal height/horizontal-overflow protection, plus dedicated structural and Playwright tests. The four available non-browser suites pass; the rendered Playwright matrix still needs Chrome/Chromium. This review branch is not merged or deployed; `main`, Supabase, SQL, storage policies, and production are untouched.
 
-## Security checkpoint
+### Security checkpoint (log)
 
 - **Tier XSS: FIXED AND REVIEWED.** A crafted JSON backup or transfer file could previously place an unescaped value in the card tier badge. `mk()` now accepts only tiers listed in `TIER_LABEL` (anything else becomes Tier 8), and `cardBody()` escapes the badge value.
 - **Spreadsheet reader: FIXED AND REVIEWED.** SheetJS 0.18.5 was replaced by the verified official-equivalent 0.20.3 core build. Imports over 5 MB or 2,000 rows are refused with a clear message; parsing stops at the limit and skips formulas and HTML. Claude tested the real 77-row roster, oversized XLSX/CSV files, and export equivalence.
 - **Cross-account isolation: PASSED.** With Renee’s approval, Claude ran 26 attacks as a simulated second authenticated user inside a forced-rollback transaction. Cross-account horse and stable reads/writes, ownership changes, deletes, truncate, `auth.users` access, and anonymous access were all blocked. Control checks showed the simulated user could still use its own stable. Renee’s before/after fingerprints matched, and no test users remained.
 - **Non-blocking:** Supabase leaked-password protection is off, which is not applicable while sign-in is Discord-only.
 
-## Next
+### Domain deployment (completed Sept 26–27)
 
-Release sequence (agreed Sept 27; finish what is built, no new features):
-
-1. ~~Apply the storage SQL~~ Done Sept 27 (see Done).
-2. Security: ~~Claude's database-level storage test~~ passed Sept 27 (see Done). Still to do: Mini's live test through the app with a separate Discord test account.
-3. ~~Real-device tests~~ passed Sept 27 (see Done), including the stale-picture fix `061b812`.
-4. Migration test: **not tested.** A new visitor cannot create or keep a local stable without signing in, so an authentic pre-cloud local roster could not be reproduced. Renee decided not to build a guest workflow just for this test. Whether guests should keep horses without signing in is a later product decision.
-5. **NOW: community beta** (started Sept 27; unknown tester count). Renee shared www.jinxsstables.com in three BDO guild Discords. Two tracks:
-   - **Production track:** www.jinxsstables.com serves Production (`main` at `61a2b41`: Discord sign-in, cloud saving, data limits, security fixes; screenshots stay on the device they were added on, no sync). Feedback from here counts as general/core-app community beta feedback. Production stays untouched during beta.
-   - **Preview track:** `https://cloud-sync-preview-jinx-stables.renee-rieke.workers.dev/` serves `cloud-sync-preview` (screenshot sync and the cache fix `061b812`, plus docs). Renee shares this link separately when she wants testers on screenshot sync and new features. Tester guide: `docs/beta-tester-guide.md`.
-   - Both tracks use the same Supabase database, so a tester's stable is the same on both. Only release blockers change code during beta. Do not use "Restore App Backup (JSON)" on Production (it drops picture links).
-6. Fix release blockers only; record usability items and ideas.
-7. Release-candidate freeze: one exact `cloud-sync-preview` SHA. Nobody changes it. Claude reviews, Codex reviews, Renee and testers test that SHA.
-8. Fast-forward `main` to that exact SHA.
-
-Caution while preview and production share the same data: do not use "Restore App Backup (JSON)" on production, because production code drops picture links on restore. Normal editing is fine.
-
-Other items, after the release:
-- Add the privacy note to the site footer.
-- Prevent iOS from offering "AutoFill Contact" on the horse Name field **and** the delete-confirmation name box.
-- Ship the horse advisor, Keep this coat, and screenshot color picker from Claude's `horse-advisor-and-coat-picker.diff`.
-- Postponed on purpose: Google/Facebook login, advanced breeding tools, coat research, AI coat recognition, new themes, shared stables. The welcome artwork stays on its own `welcome-artwork-preview` track.
-
-## Backlog
-
-Usability notes from real-device testing (not blockers; for the timeboxed polish pass unless marked otherwise):
-- A device that stays open and focused does not pick up another device's changes until you switch back to it or reload. Existing horse-sync behavior (pull on focus/visibility). A periodic pull while visible would fix it; protected sync code, post-beta decision.
-- Phone cards do not show the camera badge (desktop does).
-- Phone editor: headings show through the sticky Delete/Save bar; make it opaque above scrolling content in every theme (390 px, Dark/Amber/Blue).
-- Photo identification (post-release) requirements are recorded in `docs/screenshot-sync-plan.md`.
-- No CI runs the tests on GitHub; they are run locally by Claude and Codex. Optional later improvement.
-
-- **Pre-existing (found during screenshot review, not changed):** `fetchCloudRoster()` and `pullCloudWhenSafe()` read horses in one request. The API returns at most 1,000 rows, while stables may hold 2,000, so a stable over 1,000 horses would only show 1,000 on a device. No cloud data is deleted by this, but it should be paged like the screenshot cleanup before any stable approaches 1,000 horses. Protected sync code: needs its own reviewed change.
-
-- Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
-- Optional White color group.
-- Optional donation button, after confirming the implementation follows Pearl Abyss's fan-content requirements.
-- Improve `pullCloudWhenSafe` so unrelated remote updates can still be pulled while one oversized horse remains locally dirty; current behavior safely pauses pulls until the blocked horse is fixed.
-
-## Tester invite note
-
-- Screenshots stay on the device you add them on for now.
-
-## Decisions still open for Renee
-
-- Whether to hide the Red/White/Black boxes in the editor.
-- What “Ultimate horse” means for the advisor.
-- Whether let-go suggestions should lean toward silver from the Horse Market or Flowers of Oblivion from Imperial delivery.
-
-## Domain deployment
-
-When `jinxsstables.com` is connected, update these three items together:
-
-1. Cloudflare custom domain on the `jinx-stables` Worker.
-2. `CLOUD_ALLOWED_ORIGINS` in `public/index.html`.
-3. Supabase Site URL and redirect URLs.
-
-## Do not touch
-
-- Do not reset `cloud-sync-preview` to `909cf41` or discard later commits.
-- Do not apply Claude’s old `header-and-themes.diff`; `398e677` replaces its header work.
-- Do not replace the current file with Claude’s attached full `index.html`; only its five theme palettes were transplanted.
-- Do not modify sync, authentication, or stored-data behavior during visual/layout work.
-- Do not change Supabase without Renee’s explicit approval and the baton.
-- Do not modify `main` or the frozen `welcome-artwork-preview` branch unless Renee explicitly requests it.
-- Do not alter the connected custom domains or Supabase Auth URL configuration without Renee's explicit approval for each step.
-- Do not begin screenshot sync until the custom domain is live; do not ship the horse-advisor and coat-picker feature until screenshot sync is complete and reviewed.
-- Do not run live attack tests against Renee’s real stable.
-- Do not allow sample horses to persist locally, sync to a cloud stable, or appear in an upload prompt.
+Connected together, each with Renee's approval: the Cloudflare custom domains on the `jinx-stables` Worker, `CLOUD_ALLOWED_ORIGINS` in `public/index.html`, and the Supabase Site URL and redirect URLs (see `docs/supabase-changes.md`).
