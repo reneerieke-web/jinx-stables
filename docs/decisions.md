@@ -75,3 +75,20 @@ Records: `docs/screenshot-sync-plan.md` sections 10 and 11.
 **Why.** A made-up percentage looks precise and misleads players. Ranked "likely matches to confirm" are honest until there is data.
 
 Records: `docs/screenshot-sync-plan.md` (photo identification requirements).
+
+## D10. Fan-content rules, including an optional donation link
+
+**Source.** Renee asked the Pearl Abyss Fan Content team (email, Sept 27) whether an optional "help cover server costs" donation link was allowed on this free fan site. They replied on Sept 28, 2026. Relevant points from their reply:
+
+- **Donations are allowed**, even though the site is not on a platform like YouTube or Twitch, as stated in their Fan Content Guidelines.
+- The site **must clearly say it is not officially provided, sponsored, or endorsed by Pearl Abyss.**
+- **Commercial use is not permitted.**
+- Official Black Desert information may be used if it is publicly available through official Black Desert channels, but never in a way that could make people think Pearl Abyss created it. Pearl Abyss may ask us to stop if they find inappropriate use.
+
+**What this means for the project.**
+
+- A donation link may be added, but only as an optional "help cover server costs" link. Donating must not unlock features, give rewards, or change anything in the app. Every feature stays free for everyone.
+- Nothing may be sold (commercial use is not permitted): no paid features or paid tiers. Ask the Fan Content team before any other money-related idea.
+- Keep the existing disclaimer in the footer and on the welcome screen ("Independent fan-made tool…" plus Pearl Abyss's recommended statement). Put a clear "not officially provided, sponsored, or endorsed by Pearl Abyss" line next to the donation link itself as well.
+- Keep the site's artwork original (it is), and use only publicly available official game information (horse names, tiers, skills). Do not present anything as official.
+

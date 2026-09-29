@@ -77,7 +77,7 @@ After that:
 - Automated test runs on GitHub (CI). Tests are run by hand today.
 - Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
 - Optional White color group.
-- Optional donation button, after confirming the implementation follows Pearl Abyss's fan-content requirements.
+- Optional donation link ("help cover server costs"). Pearl Abyss confirmed on Sept 28 that a donation feature is allowed with a clear not-official/not-endorsed notice and no commercial use; the rules are in `docs/decisions.md` (D10). Not built yet.
 - Photo identification (post-release): requirements in `docs/screenshot-sync-plan.md`; rules in `docs/decisions.md`.
 
 ## Decisions still open for Renee
