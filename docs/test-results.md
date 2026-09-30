@@ -32,8 +32,16 @@ Tester: Renee. Devices: iPhone Safari and Windows Chrome, on the preview site. R
 
 - **Problem:** adding a horse (NillaCrumpet) on an iPhone: the form was too large for the screen, repeated Level + taps zoomed the page, and Save became hard or impossible to reach.
 - **Fix:** `0781eca` (16 px phone form controls, no Name autofocus on phones, `touch-action: manipulation` on buttons, two-column phone skills, a wrapping always-reachable footer, dynamic modal height, overflow protection). An earlier attempt, `0b4e6d8`, was rejected because it was built on an old ancestor.
-- **Structural tests** (`tests/mobile-quick-add.test.js`, `tests/mobile-quick-add.e2e.js`): 320, 375, 390 and 430 px phones, 1024 and 1440 px desktop, rapid Level + to 30, save ordering, columns, footer reach, autofocus, overflow. The rendered browser matrix could not run in Codex's environment at the time.
+- **Structural tests** (`tests/mobile-quick-add.test.js`, `tests/mobile-quick-add.e2e.js`): 320, 375, 390 and 430 px phones, 1024 and 1440 px desktop, rapid Level + to 30, save ordering, columns, footer reach, autofocus, overflow. The rendered browser matrix could not run in Codex's environment at the time. Later found (Sept 29): `tests/mobile-quick-add.e2e.js` cannot run anywhere because it calls app-private functions; it fails the same way on `0781eca` (see `docs/known-limitations.md`, L11). The structural test runs and passes.
 - **Real device:** Renee's iPhone add, save, cross-device, and delete test passed before `main` moved to `0781eca` (recorded in the STATUS notes on the Design Lab branches).
+
+## Phone editor Delete / Save row (Sept 29)
+
+- **Problem:** on phones the full horse editor's Delete / Save row was sticky and floated over the form (for example over Lineage's "Acquired by" and the Skills section).
+- **Fix:** `0f9dc7a`, the row in normal document flow at the end of the editor.
+- **Browser tests (headless Chromium, signed-out local copy):** `tests/editor-save-row.test.js` and `tests/editor-save-row.e2e.js` (320, 390, 430, 1024, 1366 px) pass on `0f9dc7a` and fail on `0781eca`. They also failed on three deliberately broken variants (fixed at the bottom, in flow but shifted over content, sticky re-added by a second rule). A 200 px scroll moved the row by 0 px on `0781eca` (floating) and by exactly 200 px on `0f9dc7a` (normal flow). Desktop computed styles for the row and the editor were identical before and after at 1024 and 1366 px; Quick Add's sticky footer was unchanged; Save stored an edited horse exactly once; Delete opened its confirmation.
+- **Other suites on `0f9dc7a`:** mobile Quick Add structural, feedback, screenshot-sync helpers, cloud limits, and the screenshot-sync browser test (14/14) pass.
+- **Real device:** Renee tested the full editor on her iPhone on the preview (Sept 29) and confirmed it works before it was promoted to `main`.
 
 ## Security and isolation tests
 

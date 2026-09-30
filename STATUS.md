@@ -12,9 +12,9 @@ Three kinds of project memory live in this repository:
 
 Verified on GitHub on September 28, 2026.
 
-**Production and preview are the same build.** `main` (www.jinxsstables.com and jinxsstables.com) and `cloud-sync-preview` (the preview Worker) both point to `0781eca`. The move of `main` to `0781eca` was made with Renee's explicit approval after she tested the mobile Quick Add fix on a real iPhone (add, save, cross-device, delete), as recorded in the STATUS notes on the Design Lab branches.
+**Production and preview are the same build.** `main` (www.jinxsstables.com and jinxsstables.com) and `cloud-sync-preview` (the preview Worker) both point to `0f9dc7a` (verified on GitHub on September 29). On September 29 (ET), with Renee's explicit approval, the phone editor Save/Delete fix `0f9dc7a` was fast-forwarded from `0781eca` to `cloud-sync-preview`, tested by Renee on her real iPhone, and then fast-forwarded to `main`; Cloudflare redeployed production right after. The earlier release `0781eca` (mobile Quick Add) was promoted with Renee's approval after her real-iPhone test, as recorded in the STATUS notes on the Design Lab branches.
 
-**Live in production at `0781eca`:**
+**Live in production at `0f9dc7a`:**
 
 - Discord sign-in (Google sign-in is disabled) and a cloud-synced stable per account, with Recently deleted and a 30-day restore window.
 - Database data limits: 2,000 horses per stable, 32 KB per horse record, 100-character stable names, with friendly in-app recovery.
@@ -22,12 +22,13 @@ Verified on GitHub on September 28, 2026.
 - Screenshot sync across devices (private `horse-screenshots` bucket) and the cache-busting fix `061b812`.
 - Text feedback ("Send feedback", insert-only).
 - The mobile Quick Add fix `0781eca`.
+- The phone full-editor Delete / Save row in normal document flow at the end of the form, no longer sticky (`0f9dc7a`).
 
 **On branches, not deployed:**
 
 | Work | Branch and head | State |
 | --- | --- | --- |
-| Optional feedback screenshots | `claude/focused-bardeen-ikb2lu` @ `71326c5` | SQL is review-only and **not applied**. Three open items before re-review: (1) rebase onto `0781eca`; (2) move the SECURITY DEFINER helpers into a dedicated `feedback_private` schema instead of a generic `private` schema; (3) make `tests/storage/run_feedback_parallel_test.sh` require exactly 5 committed reports and exit non-zero otherwise. |
+| Optional feedback screenshots | `claude/focused-bardeen-ikb2lu` @ `71326c5` | SQL is review-only and **not applied**. Three open items before re-review: (1) rebase onto current `main` (`0f9dc7a`); (2) move the SECURITY DEFINER helpers into a dedicated `feedback_private` schema instead of a generic `private` schema; (3) make `tests/storage/run_feedback_parallel_test.sh` require exactly 5 committed reports and exit non-zero otherwise. |
 | Design Lab v2 (desktop presentation experiment) | `claude/design-lab-v2` @ `ce4b651` | Built on Codex's `codex/design-lab-stable-ledger` @ `946cca2` (foundation `codex/design-lab-foundation` @ `c9166b4`). Presentation only. Awaits Codex review, then Renee's signed-in check on a preview. |
 | Obsolete mobile fix | `codex/mobile-quick-add-fix` @ `0b4e6d8` | **Never merge.** Built on an old ancestor and replaced by `0781eca`. Safe to delete during housekeeping. |
 | Welcome artwork track | `welcome-artwork-preview` @ `dc29f0b` | Frozen. Do not modify unless Renee asks. |
@@ -40,7 +41,7 @@ Verified on GitHub on September 28, 2026.
 
 - **Current builder:** Claude (baton handed over by Renee on September 27 because Codex was out of usage). Codex has since built the Design Lab foundation and v1 on its own `codex/` branches with Renee's direction.
 - **Backup builder:** Codex.
-- **Active branch:** `cloud-sync-preview` (`0781eca`).
+- **Active branch:** `cloud-sync-preview` (`0f9dc7a`).
 - Only the baton holder writes to `cloud-sync-preview`. Work for review goes on its own `claude/<task>` or `codex/<task>` branch. When handing off, update this file in the same commit with the baton holder, last commit, completed work, next task, and anything that must not be touched.
 
 ## Team workflow
@@ -71,10 +72,10 @@ After that:
 
 - A periodic pull while the app is visible, so an open device picks up other devices' changes (protected sync code; post-beta decision).
 - Phone cards: show the camera badge.
-- Phone editor: make the sticky Delete/Save bar opaque above scrolling content in every theme.
 - Page the horse list the way screenshot cleanup is paged, before any stable approaches 1,000 horses (protected sync code; needs its own reviewed change).
 - Let `pullCloudWhenSafe` pull unrelated remote updates while one oversized horse stays locally dirty.
 - Automated test runs on GitHub (CI). Tests are run by hand today.
+- Repair `tests/mobile-quick-add.e2e.js`, which cannot run because it calls app-private functions (see `docs/known-limitations.md`, L11).
 - Coat pairing planner using R/W/B catalog values, once enough horses have real coat codes (community color theory, label as unofficial).
 - Optional White color group.
 - Optional donation link ("help cover server costs"). Pearl Abyss confirmed on Sept 28 that a donation feature is allowed with a clear not-official/not-endorsed notice and no commercial use; the rules are in `docs/decisions.md` (D10). Not built yet.
@@ -151,6 +152,8 @@ The entries below are the running log kept since September 26. Each statement de
 - Updated screenshot sync plan committed to `docs/screenshot-sync-plan.md` (adds Dream/Mythical skip, portrait color tip, zoom, OCR later).
 - Data-limit Step 4 passed live from start to finish: ButterBean saved with Caution turned off at 2:27 AM; the oversized SIZE TEST snapshot never reached the cloud; after its notes were fixed, the warning cleared as intended; and SIZE TEST was deleted into Recently deleted for the normal 30-day purge. The database limits and app-side recovery are live without locking the user out.
 - **Mobile Quick Add release-blocker fix prepared for review (Sept 27):** an isolated patch was rebuilt directly on `cloud-sync-preview` at `1e82939` after the first review branch was found to be based on old production. It adds phone-safe 16 px controls, desktop-only Name autofocus, button `touch-action: manipulation`, a two-column phone skill layout, a wrapping/reachable action footer, and dynamic modal height/horizontal-overflow protection, plus dedicated structural and Playwright tests. The four available non-browser suites pass; the rendered Playwright matrix still needs Chrome/Chromium. This review branch is not merged or deployed; `main`, Supabase, SQL, storage policies, and production are untouched.
+
+- **Phone editor Save/Delete row fixed and released (Sept 29):** on phones the full horse editor's Delete / Save row was `position:sticky` and floated over the form (for example over Lineage and Skills). `0f9dc7a` makes it part of the normal document flow at the end of the editor; the editor's bottom padding keeps it clear of the iPhone home indicator. One phone CSS rule plus two regression tests (`tests/editor-save-row.test.js`, `tests/editor-save-row.e2e.js`); desktop computed styles and Quick Add unchanged. Review: ChipW's independent review was cut off by a usage limit before a verdict; Claude (the author) then re-verified it from GitHub and disclosed that this was not independent. Renee approved, tested it on her real iPhone on the preview, and approved promotion to `main`.
 
 ### Security checkpoint (log)
 
