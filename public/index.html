@@ -563,10 +563,13 @@
     .skills-head .count{margin-left:auto;}
     .history-add{min-width:0;}
     .history-add input{min-width:0;}
-    #editorSaveBar{position:sticky; z-index:4; bottom:0; width:calc(100% + 26px); max-width:none;
-      margin:0 -13px -16px; padding:12px 13px calc(12px + env(safe-area-inset-bottom,0px));
+    /* Phone editor: Delete / Save sit in normal flow at the end of the form
+       (not sticky), so nothing scrolls underneath them. The editor's own
+       bottom padding keeps them clear of the iPhone home indicator. */
+    #editorSaveBar{position:static; width:calc(100% + 26px); max-width:none;
+      margin:8px -13px 0; padding:12px 13px;
       display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center;
-      background:rgba(36,43,36,.97); background:color-mix(in srgb, var(--panel) 97%, transparent); border-top:1px solid var(--border); box-shadow:0 -8px 20px rgba(0,0,0,.3);}
+      border-top:1px solid var(--border);}
     #editorSaveBar .btn{min-height:44px; min-width:0; white-space:nowrap;}
     #editorSaveBar #saveBtn{justify-self:end; margin-left:0 !important;}
     /* Keep phone modals inside the dynamic viewport (including browser chrome
