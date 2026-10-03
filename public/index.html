@@ -162,6 +162,7 @@
   .chip.active{background:var(--gold); color:#20180B; border-color:var(--gold);}
 
   #grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
+  #grid[hidden]{display:none;}
   .card{background:var(--panel); border:1px solid var(--border); border-top:3px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; text-align:left; color:var(--text);}
   .card:hover{box-shadow:var(--shadow);}
   .card .top-row{display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;}
@@ -192,6 +193,65 @@
   .kv-line b{color:var(--text); font-weight:600;}
 
   .empty{padding:48px 0; text-align:center; color:var(--text-soft); font-size:14.5px;}
+
+  /* ---- Design Lab: desktop-only alternate roster presentation ----
+     This is deliberately a renderer, not a second horse collection. The
+     control and experimental views receive the same visible horse objects. */
+  .design-lab-switch{display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:-6px;}
+  .design-lab-switch-label{font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-faint);}
+  .design-lab-switch-controls{display:inline-flex; padding:3px; border:1px solid var(--border); border-radius:9px; background:var(--panel);}
+  .design-lab-switch button{border:0; border-radius:6px; padding:7px 11px; background:transparent; color:var(--text-soft);
+    font-size:12px; font-weight:600;}
+  .design-lab-switch button[aria-pressed="true"]{background:var(--panel-raised); color:var(--gold);}
+  .design-lab-ledger{width:100%; --dl-cols:52px minmax(0,2.4fr) minmax(56px,.55fr) minmax(64px,.6fr) minmax(64px,.6fr) minmax(0,1.5fr) 58px;}
+  .design-lab-header{display:flex; justify-content:space-between; align-items:baseline; gap:24px; padding:6px 0 12px;
+    border-bottom:1px solid var(--border);}
+  .design-lab-title{display:flex; align-items:baseline; gap:14px; min-width:0;}
+  .design-lab-kicker{font-family:"IBM Plex Mono","Courier New",monospace; font-size:10px; letter-spacing:.16em;
+    color:var(--text-faint); text-transform:uppercase; white-space:nowrap;}
+  .design-lab-header h2{font-size:24px; font-weight:500; line-height:1.1;}
+  .design-lab-summary{display:flex; gap:18px; color:var(--text-faint); font-size:12px; white-space:nowrap;}
+  .design-lab-columns,.design-lab-horse{display:grid; grid-template-columns:var(--dl-cols); column-gap:18px; align-items:center;}
+  .design-lab-columns{padding:9px 0 7px; border-bottom:1px solid var(--border);
+    font-family:"IBM Plex Mono","Courier New",monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint);}
+  .design-lab-columns .num,.design-lab-horse .num{text-align:right; font-variant-numeric:tabular-nums;}
+  .design-lab-horse{min-height:78px; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; outline:none;
+    box-shadow:inset 3px 0 0 transparent; transition:background-color 140ms ease;}
+  .design-lab-horse:hover,.design-lab-horse:focus-visible{background:color-mix(in srgb, var(--panel) 55%, transparent);}
+  .design-lab-horse:focus-visible{box-shadow:inset 3px 0 0 var(--gold);}
+  .design-lab-horse:hover .design-lab-name,.design-lab-horse:focus-visible .design-lab-name{color:var(--gold);}
+  .design-lab-thumb{width:52px; height:39px; overflow:hidden; border-radius:2px;}
+  .design-lab-thumb img{display:block; width:100%; height:100%; object-fit:cover;}
+  .design-lab-ident{min-width:0;}
+  .design-lab-eyebrow{display:flex; align-items:center; gap:7px; margin:0 0 3px; font-family:"IBM Plex Mono","Courier New",monospace;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-horse.special .design-lab-eyebrow .dl-kind{color:var(--gold);}
+  .design-lab-swatch{flex:0 0 auto; width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 1px color-mix(in srgb, var(--text) 25%, transparent);}
+  .design-lab-name{margin:0; font-size:23px; font-weight:500; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    transition:color 140ms ease;}
+  .design-lab-val{font-size:15px; color:var(--text);}
+  .design-lab-val small{display:block; margin-top:1px; font-size:10px; letter-spacing:.06em; color:var(--text-faint); text-transform:uppercase;}
+  .design-lab-val.muted{color:var(--text-faint);}
+  .design-lab-val.courser-full{color:var(--gold);}
+  .design-lab-status{min-width:0; font-size:13px; line-height:1.35;}
+  .design-lab-status .dl-state{display:flex; align-items:center; gap:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-status .dl-dot{flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:currentColor;}
+  .design-lab-status .dl-note{display:block; color:var(--text-faint); font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-level{font-family:"Spectral",Georgia,serif; font-size:30px; font-weight:400; line-height:1; color:var(--text-soft); text-align:right;
+    font-variant-numeric:tabular-nums;}
+  .design-lab-level.max{color:var(--text);}
+  .design-lab-wide{grid-column:3 / 6; font-size:13.5px; color:var(--text-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .design-lab-wide b{color:var(--text); font-weight:500;}
+  @media (max-width:900px) and (min-width:641px){
+    .design-lab-ledger{--dl-cols:44px minmax(0,2fr) minmax(46px,.5fr) minmax(52px,.55fr) minmax(52px,.55fr) minmax(0,1.2fr) 44px;}
+    .design-lab-horse,.design-lab-columns{column-gap:12px;}
+    .design-lab-thumb{width:44px; height:33px;}
+    .design-lab-name{font-size:20px;}
+    .design-lab-level{font-size:24px;}
+    .design-lab-kicker{display:none;}
+  }
+  @media (prefers-reduced-motion:reduce){.design-lab-horse,.design-lab-name{transition:none;}}
 
   #backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(1px); z-index:20;}
   #editor{
@@ -305,6 +365,7 @@
   #cloudStatus[data-state="saved"]{color:var(--keeper);}
   .desktop-only{display:inline;}
   @media (min-width:641px){
+    .design-lab-switch{display:flex;}
     header.top{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
       gap:18px; flex-wrap:nowrap; padding:14px 20px; border:1px solid var(--border); border-radius:14px;
       background:rgba(36,43,36,.86); background:color-mix(in srgb, var(--panel) 86%, transparent); box-shadow:0 8px 24px rgba(0,0,0,.18);}
@@ -781,7 +842,15 @@
     </div>
   </div>
 
+  <div class="design-lab-switch desktop-only" id="desktopRosterViewSwitch" aria-label="Desktop roster presentation">
+    <span class="design-lab-switch-label">Roster view</span>
+    <span class="design-lab-switch-controls">
+      <button type="button" id="currentRosterViewBtn" aria-pressed="true">Current roster</button>
+      <button type="button" id="designLabViewBtn" aria-pressed="false">Design Lab</button>
+    </span>
+  </div>
   <main id="grid"></main>
+  <main id="designLabGrid" class="design-lab-ledger" aria-label="Design Lab horse roster" hidden></main>
   <div class="empty" id="emptyState" hidden></div>
 
   <footer id="appFooter">Jinx’s Stables — Created by Renee Rieke · Independent fan-made tool for Black Desert Online. This is unofficial content which contains copyrighted materials and IP from Pearl Abyss, and is not official/endorsed content. Black Desert Online and related trademarks are the property of Pearl Abyss. Not affiliated with or endorsed by Pearl Abyss. Site design, text, and original code © 2026 Renee Rieke. Artwork created for this fan project. Third-party software is used under its respective licenses.</footer>
@@ -1980,6 +2049,9 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
 
   // ---------- DOM refs ----------
   var grid = document.getElementById("grid");
+  var designLabGrid = document.getElementById("designLabGrid");
+  var currentRosterViewBtn = document.getElementById("currentRosterViewBtn");
+  var designLabViewBtn = document.getElementById("designLabViewBtn");
   var emptyState = document.getElementById("emptyState");
   var countLabel = document.getElementById("countLabel");
   var capsuleTabs = document.getElementById("capsuleTabs");
@@ -2339,15 +2411,24 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
     return sorted;
   }
 
-  function renderGrid(){
-    if(typeof refreshSearchClear === "function") refreshSearchClear();
-    var visible = sortHorses(horses.filter(matches));
-    var capsuleTotal = horses.filter(function(h){return capsuleOf(h)===state.capsule;}).length;
-    countLabel.textContent = visible.length + " of " + capsuleTotal + " in this stable · " + horses.length + " total";
+  // Design Lab is a presentation choice only. It is intentionally session
+  // scoped: no localStorage, cloud field, or alternate horse collection.
+  var desktopRosterViewMode = "current";
+  var designLabDesktopMedia = window.matchMedia("(min-width: 641px)");
+
+  function selectVisibleHorses(){
+    return sortHorses(horses.filter(matches));
+  }
+
+  function syncDesktopRosterViewControls(){
+    var designLabActive = designLabDesktopMedia.matches && desktopRosterViewMode === "design-lab";
+    currentRosterViewBtn.setAttribute("aria-pressed", designLabActive ? "false" : "true");
+    designLabViewBtn.setAttribute("aria-pressed", designLabActive ? "true" : "false");
+  }
+
+  function renderCurrentRoster(visibleHorses){
     grid.innerHTML = "";
-    emptyState.hidden = visible.length>0;
-    emptyState.textContent = emptyMessage();
-    visible.forEach(function(h){
+    visibleHorses.forEach(function(h){
       var card = document.createElement("button");
       card.type="button";
       card.className="card";
@@ -2357,6 +2438,222 @@ format_cell:tn,sheet_new:nn,sheet_add_aoa:sn,sheet_add_json:Wk,sheet_add_dom:Cg,
       card.innerHTML = cardBody(h);
       grid.appendChild(card);
     });
+  }
+
+  function designLabElement(tag, className, textValue){
+    var node = document.createElement(tag);
+    if(className) node.className = className;
+    if(textValue !== undefined) node.textContent = String(textValue);
+    return node;
+  }
+
+  function designLabCapsuleLabel(){
+    var found = CAPSULES.find(function(c){ return c.key === state.capsule; });
+    return found ? found.label : "Stable Ledger";
+  }
+
+  // "T8" / "Doom · Dream (T9)" etc. Uses the same labels as the current cards.
+  function designLabKind(horse){
+    var tier = TIER_LABEL[horse.tier] || horse.tier || "Horse";
+    if(isSpecialSubtypeTier(horse.tier) && horse.subtype){
+      return (SUBTYPE_LABEL[horse.subtype] || horse.subtype) + " · " + tier;
+    }
+    return tier;
+  }
+
+  function loadDesignLabPhoto(thumb, horse){
+    // Read the existing local screenshot cache only. This does not download,
+    // upload, save, alter a pointer, or start a sync job. If nothing is cached
+    // on this device the cell simply stays empty (no placeholder text).
+    getScreenshot(horse.id).then(function(rec){
+      if(!thumb.isConnected || thumb.dataset.horseId !== String(horse.id)) return;
+      if(!rec || !(rec.thumb || rec.full)) return;
+      var image = document.createElement("img");
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      image.src = rec.thumb || rec.full;
+      thumb.replaceChildren(image);
+    }).catch(function(){ /* leave the cell empty */ });
+  }
+
+  function designLabValue(textValue, small, extraClass){
+    var cell = designLabElement("div", "design-lab-val num" + (extraClass ? " " + extraClass : ""));
+    cell.appendChild(document.createTextNode(textValue));
+    if(small){ cell.appendChild(designLabElement("small", "", small)); }
+    return cell;
+  }
+
+  function renderDesignLabHorse(horse){
+    var special = isSpecialSubtypeTier(horse.tier);
+    var article = designLabElement("article", "design-lab-horse" + (special ? " special" : ""));
+    article.dataset.horseId = horse.id;
+    article.tabIndex = 0;
+    article.setAttribute("role", "button");
+    article.setAttribute("aria-label", "Open " + (horse.name || "horse"));
+
+    // Presentation only. Never clone, save, or persist from Design Lab.
+    var thumb = designLabElement("div", "design-lab-thumb");
+    thumb.dataset.horseId = horse.id;
+    thumb.setAttribute("aria-hidden", "true");
+    article.appendChild(thumb);
+    if(hasScreenshot(horse.id) || screenshotPointerV(horse)) loadDesignLabPhoto(thumb, horse);
+
+    var ident = designLabElement("div", "design-lab-ident");
+    var eyebrow = designLabElement("p", "design-lab-eyebrow");
+    eyebrow.appendChild(designLabElement("span", "dl-kind", designLabKind(horse)));
+    eyebrow.appendChild(designLabElement("span", "", "·"));
+    eyebrow.appendChild(designLabElement("span", "", horse.sex || "Unknown"));
+    var group = coatGroupFor(horse);
+    if(group && group !== "Undetermined"){
+      eyebrow.appendChild(designLabElement("span", "", "·"));
+      var swatch = designLabElement("span", "design-lab-swatch");
+      swatch.style.background = coatGroupSwatch(group, horse.coatColor);
+      eyebrow.appendChild(swatch);
+      eyebrow.appendChild(designLabElement("span", "", coatGroupLabel(group).replace(/ group$/i, "")));
+    }
+    ident.appendChild(eyebrow);
+    ident.appendChild(designLabElement("h3", "design-lab-name", horse.name || "Unnamed horse"));
+    article.appendChild(ident);
+
+    var capsule = state.capsule;
+    if(capsule === "active" || capsule === "project"){
+      article.appendChild(designLabValue(String(totalSkillCount(horse))));
+      var progress = courserProgress(horse);
+      if(progress){
+        var full = progress.have === progress.total;
+        article.appendChild(designLabValue(progress.have + "/" + progress.total, full ? "Courser" : "", full ? "courser-full" : ""));
+      } else {
+        article.appendChild(designLabValue("—", "", "muted"));
+      }
+      article.appendChild(designLabValue(String(horse.breedings)));
+    } else {
+      var wide = designLabElement("div", "design-lab-wide");
+      var parts = [];
+      if(capsule === "sold" && horse.sale){
+        parts = [["Sold for ", Number(horse.sale.price||0).toLocaleString() + " silver"], [" · ", horse.sale.date || ""]];
+      } else if(capsule === "exchanged" && horse.consumedIn){
+        parts = [["Into ", horse.consumedIn.resultName || ""], [" · ", horse.consumedIn.date || ""]];
+      } else if(capsule === "imperial" && horse.imperial){
+        parts = [["", Number(horse.imperial.silver||0).toLocaleString() + " silver"],
+                 [" · Seals ", String(horse.imperial.seals == null ? "" : horse.imperial.seals)],
+                 [" · Flowers ", String(horse.imperial.flowers == null ? "" : horse.imperial.flowers)],
+                 [" · ", horse.imperial.date || ""]];
+      }
+      parts = parts.filter(function(p){ return !!p[1]; });
+      if(!parts.length){
+        // No sale/exchange/delivery details recorded: fall back to the same
+        // working facts the active ledger shows, in a quieter tone.
+        var fallbackProgress = courserProgress(horse);
+        parts = [["Skills ", String(totalSkillCount(horse))]];
+        if(fallbackProgress) parts.push([" · Courser ", fallbackProgress.have + "/" + fallbackProgress.total]);
+        parts.push([" · Breedings ", String(horse.breedings)]);
+      }
+      parts.forEach(function(p){
+        wide.appendChild(document.createTextNode(p[0]));
+        wide.appendChild(designLabElement("b", "", p[1]));
+      });
+      article.appendChild(wide);
+    }
+
+    var statusCell = designLabElement("div", "design-lab-status");
+    var stateLine = designLabElement("span", "dl-state");
+    var stStyle = STATUS_STYLE[horse.status] || STATUS_STYLE["Undetermined"];
+    var accent = CAPSULE_ACCENT[capsule];
+    stateLine.style.color = accent ? accent[1] : stStyle[1];
+    stateLine.appendChild(designLabElement("span", "dl-dot"));
+    stateLine.appendChild(designLabElement("span", "", statusLabel(horse.status || "Undetermined")));
+    statusCell.appendChild(stateLine);
+    var notes = [];
+    if(horse.project && horse.project.type && horse.project.type !== "None"){
+      notes.push(horse.project.type + (horse.project.label ? ": " + horse.project.label : ""));
+    }
+    if(special && !horse.skillDataReviewed) notes.push("Skills need review");
+    if(showCardExtras){
+      if(horse.rider) notes.push(horse.rider);
+      if(horse.location) notes.push(horse.location);
+    }
+    if(notes.length) statusCell.appendChild(designLabElement("span", "dl-note", notes.join(" · ")));
+    article.appendChild(statusCell);
+
+    var level = parseInt(horse.level, 10) || 0;
+    article.appendChild(designLabElement("div", "design-lab-level" + (level >= 30 ? " max" : ""), level));
+
+    function open(){ openEditor(horse.id); }
+    article.addEventListener("click", open);
+    article.addEventListener("keydown", function(event){
+      if(event.key === "Enter" || event.key === " "){
+        event.preventDefault();
+        open();
+      }
+    });
+    return article;
+  }
+
+  function renderDesignLab(visibleHorses){
+    designLabGrid.replaceChildren();
+    var header = designLabElement("header", "design-lab-header");
+    var title = designLabElement("div", "design-lab-title");
+    title.appendChild(designLabElement("h2", "", designLabCapsuleLabel()));
+    title.appendChild(designLabElement("span", "design-lab-kicker", "Design Lab · Stable Ledger"));
+    header.appendChild(title);
+    var summary = designLabElement("div", "design-lab-summary");
+    summary.appendChild(designLabElement("span", "", visibleHorses.length + " shown"));
+    summary.appendChild(designLabElement("span", "", horses.length + " recorded"));
+    header.appendChild(summary);
+    designLabGrid.appendChild(header);
+
+    var columns = designLabElement("div", "design-lab-columns");
+    columns.setAttribute("aria-hidden", "true");
+    var working = state.capsule === "active" || state.capsule === "project";
+    var labels = working ? ["", "Horse", "Skills", "Courser", "Breed", "Status", "Lv"]
+                         : ["", "Horse", "Details", null, null, "Status", "Lv"];
+    labels.forEach(function(label, i){
+      if(label === null) return;
+      var cell = designLabElement("span", (i >= 2 && i <= 4 && working) || i === 6 ? "num" : "", label);
+      if(!working && i === 2) cell.style.gridColumn = "3 / 6";
+      columns.appendChild(cell);
+    });
+    designLabGrid.appendChild(columns);
+    visibleHorses.forEach(function(horse){ designLabGrid.appendChild(renderDesignLabHorse(horse)); });
+  }
+  function renderGrid(){
+    if(typeof refreshSearchClear === "function") refreshSearchClear();
+    var visibleHorses = selectVisibleHorses();
+    var capsuleTotal = horses.filter(function(h){return capsuleOf(h)===state.capsule;}).length;
+    countLabel.textContent = visibleHorses.length + " of " + capsuleTotal + " in this stable · " + horses.length + " total";
+    emptyState.hidden = visibleHorses.length>0;
+    emptyState.textContent = emptyMessage();
+    var useDesignLab = designLabDesktopMedia.matches && desktopRosterViewMode === "design-lab";
+    grid.hidden = useDesignLab;
+    designLabGrid.hidden = !useDesignLab;
+    syncDesktopRosterViewControls();
+    if(useDesignLab){
+      grid.innerHTML = "";
+      renderDesignLab(visibleHorses);
+    } else {
+      designLabGrid.replaceChildren();
+      renderCurrentRoster(visibleHorses);
+    }
+  }
+
+  currentRosterViewBtn.addEventListener("click", function(){
+    desktopRosterViewMode = "current";
+    renderGrid();
+  });
+  designLabViewBtn.addEventListener("click", function(){
+    if(!designLabDesktopMedia.matches) return;
+    desktopRosterViewMode = "design-lab";
+    renderGrid();
+  });
+  function handleDesignLabBreakpoint(){
+    if(!designLabDesktopMedia.matches) desktopRosterViewMode = "current";
+    renderGrid();
+  }
+  if(designLabDesktopMedia.addEventListener){
+    designLabDesktopMedia.addEventListener("change", handleDesignLabBreakpoint);
+  } else if(designLabDesktopMedia.addListener){
+    designLabDesktopMedia.addListener(handleDesignLabBreakpoint);
   }
 
   function renderAll(){
